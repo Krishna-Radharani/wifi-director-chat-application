@@ -273,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        messageTextView.setText(tempMSG);
+                                        messageTextView.append("\n" + tempMSG);
                                     }
                                 });
                             }
@@ -331,7 +331,7 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        messageTextView.setText(tempMSG);
+                                        messageTextView.append("\n" + tempMSG);
                                     }
                                 });
                             }
