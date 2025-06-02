@@ -1,74 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="@color/white">
 
-    <!-- Switch -->
-    <Switch
+    <!-- SwitchCompat -->
+    <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/swithch1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Enable Option"
-        android:layout_marginBottom="16dp" />
+        android:text="@string/enable_option"
+        android:textColor="@color/black"
+        android:layout_marginBottom="12dp"
+        android:minHeight="48dp" />
 
     <!-- Discover Devices Button -->
     <Button
         android:id="@+id/buttonDiscover"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Discover Devices" />
+        android:text="@string/discover_devices"
+        android:backgroundTint="@color/purple_500"
+        android:textColor="@color/white"
+        android:minHeight="48dp"
+        android:elevation="4dp"
+        android:layout_marginBottom="12dp" />
 
     <!-- Connection Status -->
     <TextView
         android:id="@+id/connection_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Status: Idle"
-        android:paddingTop="10dp"
-        android:textStyle="bold" />
+        android:text="@string/status_idle"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginBottom="8dp" />
 
     <!-- List of Peers -->
     <ListView
         android:id="@+id/listView"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        android:layout_marginTop="8dp"
         android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp" />
+        android:dividerHeight="1dp"
+        android:layout_marginBottom="16dp" />
 
-    <!-- Chat Section -->
+    <!-- Chat Input -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="16dp">
+        android:background="@drawable/edit_text_background"
+        android:padding="8dp"
+        android:elevation="2dp">
 
         <EditText
             android:id="@+id/editTextTypeMsg"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Type a message" />
+            android:hint="@string/type_message"
+            android:inputType="text"
+            android:minHeight="48dp"
+            android:textColor="@color/black"
+            android:background="@android:color/transparent" />
 
         <ImageButton
             android:id="@+id/sendButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/ic_send"
-            android:contentDescription="Send"
-            android:background="@null"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
+            android:contentDescription="@string/send"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/purple_500"
+            android:padding="8dp" />
     </LinearLayout>
 
-    <!-- Chat Messages -->
-    <TextView
-        android:id="@+id/messageTextView"
+    <!-- Clear Chat Button -->
+
+
+    <!-- Chat Log -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Chat Log:"
-        android:paddingTop="16dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp">
+
+        <TextView
+            android:id="@+id/messageTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/chat_log"
+            android:textColor="@color/black"
+            android:padding="8dp"
+            android:lineSpacingExtra="6dp" />
+    </ScrollView>
 
 </LinearLayout>
