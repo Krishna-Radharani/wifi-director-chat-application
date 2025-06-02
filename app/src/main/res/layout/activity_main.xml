@@ -81,7 +81,16 @@
     </LinearLayout>
 
     <!-- Clear Chat Button -->
-
+    <Button
+        android:id="@+id/clearChatButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/clear_chat"
+        android:textColor="@color/white"
+        android:backgroundTint="@color/teal_700"
+        android:layout_marginTop="12dp"
+        android:minHeight="48dp"
+        android:elevation="2dp" />
 
     <!-- Chat Log -->
     <ScrollView

@@ -66,11 +66,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        initialwork();
+        setContentView(R.layout.activity_main); // MUST come first
 
+        Button clearChatButton = findViewById(R.id.clearChatButton);
+        TextView messageTextView = findViewById(R.id.messageTextView);
+
+        clearChatButton.setOnClickListener(v -> {
+            messageTextView.setText("Chat Log:");
+        });
+
+        initialwork();
         exqListener();
     }
+
 
     private void exqListener() {
         aSwitch.setOnClickListener(new View.OnClickListener() {
@@ -120,20 +128,32 @@ public class MainActivity extends AppCompatActivity {
         sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                ExecutorService executor = Executors.newSingleThreadExecutor();
                 String msg = typeMsg.getText().toString();
-                executor.execute((new Runnable() {
-                    @Override
-                    public void run() {
-                        if (msg != null && isHost) {
-                            serverClass.write(msg.getBytes());
-                        } else if (msg != null && !isHost) {
-                            clientClass.write(msg.getBytes());
+
+                if (msg != null && !msg.isEmpty()) {
+                    ExecutorService executor = Executors.newSingleThreadExecutor();
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isHost) {
+                                serverClass.write(msg.getBytes());
+                            } else {
+                                clientClass.write(msg.getBytes());
+                            }
+
+                            // Clear the input on the UI thread
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    typeMsg.setText("");
+                                }
+                            });
                         }
-                    }
-                }));
+                    });
+                }
             }
         });
+
     }
 
     private void initialwork() {
