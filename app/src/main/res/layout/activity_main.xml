@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layout_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Switch -->
+    <Switch
+        android:id="@+id/swithch1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enable Option"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Discover Devices Button -->
+    <Button
+        android:id="@+id/buttonDiscover"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Discover Devices" />
+
+    <!-- Connection Status -->
+    <TextView
+        android:id="@+id/connection_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: Idle"
+        android:paddingTop="10dp"
+        android:textStyle="bold" />
+
+    <!-- List of Peers -->
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginTop="8dp"
+        android:divider="@android:color/darker_gray"
+        android:dividerHeight="1dp" />
+
+    <!-- Chat Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp">
+
+        <EditText
+            android:id="@+id/editTextTypeMsg"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Type a message" />
+
+        <ImageButton
+            android:id="@+id/sendButton"
+            android:src="@drawable/ic_send"
+            android:contentDescription="Send"
+            android:background="@null"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+    <!-- Chat Messages -->
+    <TextView
+        android:id="@+id/messageTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Chat Log:"
+        android:paddingTop="16dp" />
+
+</LinearLayout>
