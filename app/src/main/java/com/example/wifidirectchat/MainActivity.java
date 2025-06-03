@@ -16,6 +16,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.BackgroundColorSpan;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -135,6 +138,10 @@ public class MainActivity extends AppCompatActivity {
                 String msg = typeMsg.getText().toString();
 
                 if (msg != null && !msg.isEmpty()) {
+
+                    // ✅ Show the message immediately on sender's side
+                    appendMessageWithMeta(msg);
+
                     ExecutorService executor = Executors.newSingleThreadExecutor();
                     executor.execute(new Runnable() {
                         @Override
@@ -145,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
                                 clientClass.write(msg.getBytes());
                             }
 
-                            // Clear the input on the UI thread
+                            // ✅ Clear input box
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -157,6 +164,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
 
     }
 
@@ -351,13 +359,27 @@ public class MainActivity extends AppCompatActivity {
     }
     private void appendMessageWithMeta(String message) {
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String currentText = messageTextView.getText().toString();
-        String newEntry = String.format("%s\n[%s]: %s", currentText, timestamp, message);
-        messageTextView.setText(newEntry);
+        String formatted = String.format("[%s]: %s", timestamp, message);
 
-        // Auto-scroll to bottom
+        SpannableString spannable = new SpannableString(formatted);
+
+        // Green bubble background color
+        spannable.setSpan(
+                new BackgroundColorSpan(0xFFDCF8C6), // WhatsApp-style light green
+                0,
+                spannable.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+
+        // Optional: add margin/newline before bubble if needed
+        messageTextView.append("\n");
+        messageTextView.append(spannable);
+        messageTextView.append("\n");
+
+        // Auto-scroll
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
 
 }
