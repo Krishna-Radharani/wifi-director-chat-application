@@ -23,6 +23,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -36,8 +37,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -273,7 +277,8 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        messageTextView.append("\n" + tempMSG);
+                                        appendMessageWithMeta( tempMSG);
+
                                     }
                                 });
                             }
@@ -331,7 +336,8 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        messageTextView.append("\n" + tempMSG);
+                                        appendMessageWithMeta(tempMSG);
+
                                     }
                                 });
                             }
@@ -343,4 +349,15 @@ public class MainActivity extends AppCompatActivity {
             });
         }
     }
+    private void appendMessageWithMeta(String message) {
+        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+        String currentText = messageTextView.getText().toString();
+        String newEntry = String.format("%s\n[%s]: %s", currentText, timestamp, message);
+        messageTextView.setText(newEntry);
+
+        // Auto-scroll to bottom
+        ScrollView scrollView = findViewById(R.id.scrollView);
+        scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+    }
+
 }
