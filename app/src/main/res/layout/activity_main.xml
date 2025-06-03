@@ -100,14 +100,13 @@
         android:layout_weight="1"
         android:layout_marginTop="12dp">
 
-        <TextView
-            android:id="@+id/messageTextView"
+        <LinearLayout
+            android:id="@+id/messageContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/chat_log"
-            android:textColor="@color/black"
-            android:padding="8dp"
-            android:lineSpacingExtra="6dp" />
+            android:orientation="vertical"
+            android:layout_gravity="bottom" />
+
     </ScrollView>
 
 </LinearLayout>

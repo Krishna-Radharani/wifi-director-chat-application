@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
 import android.media.Image;
 import android.net.InetAddresses;
 import android.net.wifi.p2p.WifiP2pConfig;
@@ -19,12 +20,14 @@ import android.provider.Settings;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.BackgroundColorSpan;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -54,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     ListView listView;
     EditText typeMsg;
     ImageButton sendButton;
+    LinearLayout messageContainer;  // ✅ Add this line
     WifiP2pManager manager;
     WifiP2pManager.Channel channel;
     BroadcastReceiver receiver;
@@ -74,12 +78,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main); // MUST come first
-
         Button clearChatButton = findViewById(R.id.clearChatButton);
-        TextView messageTextView = findViewById(R.id.messageTextView);
+        LinearLayout messageContainer = findViewById(R.id.messageContainer);
 
         clearChatButton.setOnClickListener(v -> {
-            messageTextView.setText("Chat Log:");
+            messageContainer.removeAllViews(); // Clears all message bubbles
         });
 
         initialwork();
@@ -140,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
                 if (msg != null && !msg.isEmpty()) {
 
                     // ✅ Show the message immediately on sender's side
-                    appendMessageWithMeta(msg);
+                    appendMessageWithMeta(msg,true);
 
                     ExecutorService executor = Executors.newSingleThreadExecutor();
                     executor.execute(new Runnable() {
@@ -170,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void initialwork() {
         connectionStatus = findViewById(R.id.connection_status);
-        messageTextView = findViewById(R.id.messageTextView);
+        messageContainer = findViewById(R.id.messageContainer);
         aSwitch = findViewById(R.id.swithch1);
         discoverButton = findViewById(R.id.buttonDiscover);
         listView = findViewById(R.id.listView);
@@ -285,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        appendMessageWithMeta( tempMSG);
+                                        appendMessageWithMeta( tempMSG,false);
 
                                     }
                                 });
@@ -344,7 +347,7 @@ public class MainActivity extends AppCompatActivity {
                                     @Override
                                     public void run() {
                                         String tempMSG = new String(buffer, 0, finalBytes);
-                                        appendMessageWithMeta(tempMSG);
+                                        appendMessageWithMeta(tempMSG,false);
 
                                     }
                                 });
@@ -357,24 +360,29 @@ public class MainActivity extends AppCompatActivity {
             });
         }
     }
-    private void appendMessageWithMeta(String message) {
-        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String formatted = String.format("[%s]: %s", timestamp, message);
+    private void appendMessageWithMeta(String message, boolean isSender) {
+        String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
-        SpannableString spannable = new SpannableString(formatted);
+        LinearLayout container = findViewById(R.id.messageContainer);
+        TextView bubble = new TextView(this);
 
-        // Green bubble background color
-        spannable.setSpan(
-                new BackgroundColorSpan(0xFFDCF8C6), // WhatsApp-style light green
-                0,
-                spannable.length(),
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        bubble.setText(message + "  " + timestamp);
+        bubble.setTextSize(16f);
+        bubble.setPadding(20, 14, 20, 14);
+        bubble.setMaxWidth(700);
+        bubble.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+        bubble.setTextColor(Color.BLACK);
+
+        // Align sender to right, receiver to left
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
         );
+        params.setMargins(10, 10, 10, 10);
+        params.gravity = isSender ? Gravity.END : Gravity.START;
 
-        // Optional: add margin/newline before bubble if needed
-        messageTextView.append("\n");
-        messageTextView.append(spannable);
-        messageTextView.append("\n");
+        bubble.setLayoutParams(params);
+        container.addView(bubble);
 
         // Auto-scroll
         ScrollView scrollView = findViewById(R.id.scrollView);
