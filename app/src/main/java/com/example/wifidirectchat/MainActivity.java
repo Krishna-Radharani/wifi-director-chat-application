@@ -401,27 +401,60 @@ public class MainActivity extends AppCompatActivity {
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
+        // Extract reply portion if present
+        String quotedText = null;
+        String actualMessage = message;
+
+        if (message.startsWith("Replying to: ")) {
+            int index = message.indexOf("\n");
+            if (index != -1) {
+                quotedText = message.substring(0, index); // Replying to: xyz
+                actualMessage = message.substring(index + 1);
+            }
+        }
+
         FrameLayout wrapper = new FrameLayout(this);
 
-        TextView bubble = new TextView(this);
-        bubble.setText(message + "  " + timestamp);
-        bubble.setTextSize(16f);
-        bubble.setPadding(20, 14, 20, 14);
-        bubble.setMaxWidth(700);
-        bubble.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
-        bubble.setTextColor(Color.BLACK);
-
-        // Set LayoutParams for bubble inside FrameLayout wrapper
-        FrameLayout.LayoutParams bubbleParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
+        // 🧱 Container to hold reply + actual message
+        LinearLayout bubbleLayout = new LinearLayout(this);
+        bubbleLayout.setOrientation(LinearLayout.VERTICAL);
+        bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+        bubbleLayout.setPadding(20, 14, 20, 14);
+        LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        // No gravity here because bubble fills wrapper (or you can center if you want)
-        bubble.setLayoutParams(bubbleParams);
+// ✅ Removed width override
+        bubbleLayout.setLayoutParams(bubbleParams);
 
-        wrapper.addView(bubble);
+// 🟦 Quoted message block (if any)
+        if (quotedText != null) {
+            TextView replyQuote = new TextView(this);
+            replyQuote.setText(quotedText);
+            replyQuote.setTextColor(Color.parseColor("#1e88e5")); // blue color
+            replyQuote.setBackgroundColor(Color.parseColor("#e3f2fd")); // light blue bg
+            replyQuote.setPadding(12, 8, 12, 8);
+            replyQuote.setTextSize(13f);
 
-        // Set LayoutParams for wrapper inside the messageContainer (which is LinearLayout vertical)
+            bubbleLayout.addView(replyQuote);
+        }
+
+// ✉️ Main message
+        TextView msgText = new TextView(this);
+        msgText.setText(actualMessage + "  " + timestamp);
+        msgText.setTextColor(Color.BLACK);
+        msgText.setTextSize(16f);
+
+// ✅ Constrain long messages to wrap
+        msgText.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.75));
+
+        bubbleLayout.addView(msgText);
+
+// Add bubbleLayout into wrapper
+        wrapper.addView(bubbleLayout);
+
+
+        // Set LayoutParams for wrapper
         LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -431,20 +464,23 @@ public class MainActivity extends AppCompatActivity {
 
         wrapper.setLayoutParams(wrapperParams);
 
-        // Swipe listener (keep unchanged)
+        // 💬 Swipe reply trigger
+        String finalActualMessage = actualMessage;
         wrapper.setOnTouchListener(new OnSwipeTouchListener(this) {
             public void onSwipeRight() {
                 replyLayout.setVisibility(View.VISIBLE);
-                replyingToMessage = message;
-                replyText.setText("Replying to: " + message);
+                replyingToMessage = finalActualMessage;
+                replyText.setText(finalActualMessage);
             }
         });
 
+        // Add to chat
         messageContainer.addView(wrapper);
 
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
 
 
     public class OnSwipeTouchListener implements View.OnTouchListener {
