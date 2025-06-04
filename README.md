@@ -43,5 +43,16 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 3. Type messages in the input box and hit Send.
 
 4. Messages will appear on both devices.
+### Important Notes
+- Currently, only text messages are fully supported.
 
+- File transfer feature is not enabled due to bugs.
+
+- Both devices must be connected over Wi-Fi Direct (P2P).
+
+- Make sure to add these permissions in AndroidManifest.xml:
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
