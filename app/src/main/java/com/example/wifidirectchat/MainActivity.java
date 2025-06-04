@@ -81,7 +81,8 @@ public class MainActivity extends AppCompatActivity {
      TextView replyText;
      ImageView closeReply;
      String replyingToMessage = null;
-    MediaPlayer mediaPlayer;
+    MediaPlayer mediaPlayerSend;
+    MediaPlayer mediaPlayerReceive;
 
 
     @Override
@@ -90,7 +91,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Initialize media player with sound resource
-        mediaPlayer = MediaPlayer.create(this, R.raw.send_sound);
+        mediaPlayerSend = MediaPlayer.create(this, R.raw.send_sound);
+        mediaPlayerReceive = MediaPlayer.create(this, R.raw.receive_sound);
 
         Button clearChatButton = findViewById(R.id.clearChatButton);
         messageContainer = findViewById(R.id.messageContainer);
@@ -186,8 +188,8 @@ public class MainActivity extends AppCompatActivity {
                     appendMessageWithMeta(msg, true);
 
                     // Play sound on send
-                    if(mediaPlayer != null){
-                        mediaPlayer.start();
+                    if(mediaPlayerSend != null){
+                        mediaPlayerSend.start();
                     }
 
 
@@ -485,8 +487,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Add to chat
         messageContainer.addView(wrapper);
-        if (!isSender && mediaPlayer != null) {
-            mediaPlayer.start();
+        if (!isSender && mediaPlayerReceive  != null) {
+            mediaPlayerReceive .start();
+        }else if (isSender && mediaPlayerSend != null) {
+            mediaPlayerSend.start();
         }
 
 
