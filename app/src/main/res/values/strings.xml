@@ -6,4 +6,5 @@
     <string name="send">Send</string>
     <string name="clear_chat">Clear Chat</string>
     <string name="chat_log">Chat Log:</string>
+    <string name="toggle_device_list">Toggle device list visibility</string>
 </resources>

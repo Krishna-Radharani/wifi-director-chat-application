@@ -49,6 +49,38 @@
         android:dividerHeight="1dp"
         android:layout_marginBottom="16dp" />
 
+
+    <!-- Reply Preview -->
+    <LinearLayout
+        android:id="@+id/replyLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:background="@color/gray"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/replyText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Replying to..."
+            android:textColor="@color/black"
+            android:textStyle="italic" />
+
+        <ImageView
+            android:id="@+id/closeReply"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            :contentDescription="Close"
+            android:layout_gravity="center_vertical"
+            android:padding="4dp"
+            app:tint="@color/black" />
+    </LinearLayout>
+
+
     <!-- Chat Input -->
     <LinearLayout
         android:layout_width="match_parent"

@@ -3,6 +3,10 @@ package com.example.wifidirectchat;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.widget.FrameLayout;
+
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
@@ -27,6 +31,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -66,20 +71,26 @@ public class MainActivity extends AppCompatActivity {
     String[] deviceNameArray;
     WifiP2pDevice[] deviceArray;
     Socket socket;
-
     ServerClass serverClass;
     ClientClass clientClass;
-
     boolean isHost;
+    ActivityResultLauncher<Intent> wifiSettingsLauncher; //// NEW
 
-    ActivityResultLauncher<Intent> wifiSettingsLauncher; // NEW
+     LinearLayout replyLayout;
+     TextView replyText;
+     ImageView closeReply;
+     String replyingToMessage = null;
+
+
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main); // MUST come first
         Button clearChatButton = findViewById(R.id.clearChatButton);
-        LinearLayout messageContainer = findViewById(R.id.messageContainer);
+         messageContainer = findViewById(R.id.messageContainer);
 
         clearChatButton.setOnClickListener(v -> {
             messageContainer.removeAllViews(); // Clears all message bubbles
@@ -87,6 +98,15 @@ public class MainActivity extends AppCompatActivity {
 
         initialwork();
         exqListener();
+        replyLayout = findViewById(R.id.replyLayout);
+        replyText = findViewById(R.id.replyText);
+        closeReply = findViewById(R.id.closeReply);
+
+        closeReply.setOnClickListener(v -> {
+            replyingToMessage = null;
+            replyLayout.setVisibility(View.GONE);
+        });
+
     }
 
 
@@ -138,21 +158,25 @@ public class MainActivity extends AppCompatActivity {
         sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String msg = typeMsg.getText().toString();
+                String msg = typeMsg.getText().toString().trim();
+                if (!msg.isEmpty()) {
+                    if (replyingToMessage != null) {
+                        msg = "Replying to: " + replyingToMessage + "\n" + msg;
+                        replyingToMessage = null;
+                        replyLayout.setVisibility(View.GONE);
+                    }
+                    appendMessageWithMeta(msg, true);
 
-                if (msg != null && !msg.isEmpty()) {
-
-                    // ✅ Show the message immediately on sender's side
-                    appendMessageWithMeta(msg,true);
 
                     ExecutorService executor = Executors.newSingleThreadExecutor();
+                    String finalMsg = msg;
                     executor.execute(new Runnable() {
                         @Override
                         public void run() {
                             if (isHost) {
-                                serverClass.write(msg.getBytes());
+                                serverClass.write(finalMsg.getBytes());
                             } else {
-                                clientClass.write(msg.getBytes());
+                                clientClass.write(finalMsg.getBytes());
                             }
 
                             // ✅ Clear input box
@@ -363,9 +387,10 @@ public class MainActivity extends AppCompatActivity {
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
-        LinearLayout container = findViewById(R.id.messageContainer);
-        TextView bubble = new TextView(this);
+        // Wrapper to allow swiping the message
+        FrameLayout wrapper = new FrameLayout(this);
 
+        TextView bubble = new TextView(this);
         bubble.setText(message + "  " + timestamp);
         bubble.setTextSize(16f);
         bubble.setPadding(20, 14, 20, 14);
@@ -373,7 +398,6 @@ public class MainActivity extends AppCompatActivity {
         bubble.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
         bubble.setTextColor(Color.BLACK);
 
-        // Align sender to right, receiver to left
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -382,12 +406,64 @@ public class MainActivity extends AppCompatActivity {
         params.gravity = isSender ? Gravity.END : Gravity.START;
 
         bubble.setLayoutParams(params);
-        container.addView(bubble);
+        wrapper.addView(bubble);
+
+        // Detect swipe gesture
+        wrapper.setOnTouchListener(new OnSwipeTouchListener(this) {
+            public void onSwipeRight() {
+                replyLayout.setVisibility(View.VISIBLE);
+                replyingToMessage = message;
+                replyText.setText("Replying to: " + message);
+            }
+        });
+
+        messageContainer.addView(wrapper);
 
         // Auto-scroll
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
+    public class OnSwipeTouchListener implements View.OnTouchListener {
+        private final GestureDetector gestureDetector;
+
+        public OnSwipeTouchListener(Context context) {
+            gestureDetector = new GestureDetector(context, new GestureListener());
+        }
+
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            return gestureDetector.onTouchEvent(event);
+        }
+
+        private final class GestureListener extends GestureDetector.SimpleOnGestureListener {
+            private static final int SWIPE_THRESHOLD = 100;
+            private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+
+            @Override
+            public boolean onDown(MotionEvent e) {
+                return true;
+            }
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                float diffX = e2.getX() - e1.getX();
+                if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
+                    if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffX > 0) onSwipeRight();
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        public void onSwipeRight() {
+            // Override in usage
+        }
+    }
+
+
 
 
 }

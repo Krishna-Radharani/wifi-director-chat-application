@@ -1,5 +1,5 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#DCF8C6" /> <!-- Light green like WhatsApp -->
+    <solid android:color="#D0EBFF" /> <!-- White -->
     <corners android:radius="20dp" />
 </shape>
