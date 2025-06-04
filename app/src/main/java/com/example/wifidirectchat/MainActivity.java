@@ -83,21 +83,35 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // MUST come first
+        setContentView(R.layout.activity_main);
+
         Button clearChatButton = findViewById(R.id.clearChatButton);
-         messageContainer = findViewById(R.id.messageContainer);
+        messageContainer = findViewById(R.id.messageContainer);
 
         clearChatButton.setOnClickListener(v -> {
             messageContainer.removeAllViews(); // Clears all message bubbles
         });
 
-        initialwork();
-        exqListener();
+        initialwork(); // important
+
+        // 🔽 Add toggle logic here
+        Button toggleButton = findViewById(R.id.toggleDeviceListButton);
+        ListView deviceListView = findViewById(R.id.listView);
+        toggleButton.setOnClickListener(v -> {
+            if (deviceListView.getVisibility() == View.VISIBLE) {
+                deviceListView.setVisibility(View.GONE);
+                toggleButton.setText("Show Device List");
+            } else {
+                deviceListView.setVisibility(View.VISIBLE);
+                toggleButton.setText("Hide Device List");
+            }
+        });
+
+        exqListener(); // keep this after toggle logic
+
         replyLayout = findViewById(R.id.replyLayout);
         replyText = findViewById(R.id.replyText);
         closeReply = findViewById(R.id.closeReply);
@@ -106,8 +120,8 @@ public class MainActivity extends AppCompatActivity {
             replyingToMessage = null;
             replyLayout.setVisibility(View.GONE);
         });
-
     }
+
 
 
     private void exqListener() {
