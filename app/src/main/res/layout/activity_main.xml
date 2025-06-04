@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_root"
     android:layout_width="match_parent"
@@ -49,7 +50,6 @@
         android:dividerHeight="1dp"
         android:layout_marginBottom="16dp" />
 
-
     <!-- Reply Preview -->
     <LinearLayout
         android:id="@+id/replyLayout"
@@ -58,7 +58,8 @@
         android:orientation="horizontal"
         android:visibility="gone"
         android:background="@color/gray"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:layout_marginBottom="8dp">
 
         <TextView
             android:id="@+id/replyText"
@@ -74,27 +75,42 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            :contentDescription="Close"
+            android:contentDescription="Close"
             android:layout_gravity="center_vertical"
             android:padding="4dp"
             app:tint="@color/black" />
     </LinearLayout>
 
+    <!-- ScrollView for chat messages - fills remaining space -->
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="8dp">
 
-    <!-- Chat Input -->
+        <LinearLayout
+            android:id="@+id/messageContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </ScrollView>
+
+    <!-- Chat Input fixed at bottom -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:background="@drawable/edit_text_background"
         android:padding="8dp"
-        android:elevation="2dp">
+        android:elevation="2dp"
+        android:layout_marginBottom="12dp">
 
         <EditText
             android:id="@+id/editTextTypeMsg"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_height="wrap_content"
             android:hint="@string/type_message"
             android:inputType="text"
             android:minHeight="48dp"
@@ -120,25 +136,7 @@
         android:text="@string/clear_chat"
         android:textColor="@color/white"
         android:backgroundTint="@color/teal_700"
-        android:layout_marginTop="12dp"
         android:minHeight="48dp"
         android:elevation="2dp" />
-
-    <!-- Chat Log -->
-    <ScrollView
-        android:id="@+id/scrollView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="12dp">
-
-        <LinearLayout
-            android:id="@+id/messageContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_gravity="bottom" />
-
-    </ScrollView>
 
 </LinearLayout>
