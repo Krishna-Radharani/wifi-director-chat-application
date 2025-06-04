@@ -401,7 +401,6 @@ public class MainActivity extends AppCompatActivity {
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
-        // Wrapper to allow swiping the message
         FrameLayout wrapper = new FrameLayout(this);
 
         TextView bubble = new TextView(this);
@@ -412,17 +411,27 @@ public class MainActivity extends AppCompatActivity {
         bubble.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
         bubble.setTextColor(Color.BLACK);
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        // Set LayoutParams for bubble inside FrameLayout wrapper
+        FrameLayout.LayoutParams bubbleParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        // No gravity here because bubble fills wrapper (or you can center if you want)
+        bubble.setLayoutParams(bubbleParams);
+
+        wrapper.addView(bubble);
+
+        // Set LayoutParams for wrapper inside the messageContainer (which is LinearLayout vertical)
+        LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(10, 10, 10, 10);
-        params.gravity = isSender ? Gravity.END : Gravity.START;
+        wrapperParams.setMargins(10, 10, 10, 10);
+        wrapperParams.gravity = isSender ? Gravity.END : Gravity.START;
 
-        bubble.setLayoutParams(params);
-        wrapper.addView(bubble);
+        wrapper.setLayoutParams(wrapperParams);
 
-        // Detect swipe gesture
+        // Swipe listener (keep unchanged)
         wrapper.setOnTouchListener(new OnSwipeTouchListener(this) {
             public void onSwipeRight() {
                 replyLayout.setVisibility(View.VISIBLE);
@@ -433,10 +442,10 @@ public class MainActivity extends AppCompatActivity {
 
         messageContainer.addView(wrapper);
 
-        // Auto-scroll
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
 
     public class OnSwipeTouchListener implements View.OnTouchListener {
         private final GestureDetector gestureDetector;
