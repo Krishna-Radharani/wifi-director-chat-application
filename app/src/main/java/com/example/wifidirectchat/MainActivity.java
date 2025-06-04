@@ -3,6 +3,7 @@ package com.example.wifidirectchat;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.media.MediaPlayer;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.widget.FrameLayout;
@@ -80,13 +81,16 @@ public class MainActivity extends AppCompatActivity {
      TextView replyText;
      ImageView closeReply;
      String replyingToMessage = null;
-
+    MediaPlayer mediaPlayer;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initialize media player with sound resource
+        mediaPlayer = MediaPlayer.create(this, R.raw.send_sound);
 
         Button clearChatButton = findViewById(R.id.clearChatButton);
         messageContainer = findViewById(R.id.messageContainer);
@@ -180,6 +184,11 @@ public class MainActivity extends AppCompatActivity {
                         replyLayout.setVisibility(View.GONE);
                     }
                     appendMessageWithMeta(msg, true);
+
+                    // Play sound on send
+                    if(mediaPlayer != null){
+                        mediaPlayer.start();
+                    }
 
 
                     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -476,6 +485,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Add to chat
         messageContainer.addView(wrapper);
+        if (!isSender && mediaPlayer != null) {
+            mediaPlayer.start();
+        }
+
 
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
