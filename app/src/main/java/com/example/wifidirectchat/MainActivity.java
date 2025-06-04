@@ -482,6 +482,7 @@ public class MainActivity extends AppCompatActivity {
                 replyLayout.setVisibility(View.VISIBLE);
                 replyingToMessage = finalActualMessage;
                 replyText.setText(finalActualMessage);
+                replyText.setTextColor(Color.parseColor("#FF5722"));
             }
         });
 
