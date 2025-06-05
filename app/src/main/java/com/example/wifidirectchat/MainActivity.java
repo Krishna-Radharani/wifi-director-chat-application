@@ -814,61 +814,60 @@ public class MainActivity extends AppCompatActivity {
         );
         bubbleLayout.setLayoutParams(bubbleParams);
 
-        if (file.exists() && (fileName.endsWith(".jpg") || fileName.endsWith(".png") || fileName.endsWith(".jpeg"))) {
-            try {
-                ImageView imageView = new ImageView(this);
-                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+        if (file.exists()) {
+            if (fileName.endsWith(".jpg") || fileName.endsWith(".png") || fileName.endsWith(".jpeg")) {
+                // IMAGE FILE: Show thumbnail
+                try {
+                    ImageView imageView = new ImageView(this);
+                    Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
 
-                // Scale the image
-                int maxWidth = (int)(getResources().getDisplayMetrics().widthPixels * 0.6);
-                int maxHeight = (int)(getResources().getDisplayMetrics().heightPixels * 0.4);
+                    // Scale the image
+                    int maxWidth = (int)(getResources().getDisplayMetrics().widthPixels * 0.6);
+                    int maxHeight = (int)(getResources().getDisplayMetrics().heightPixels * 0.4);
 
-                if (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight) {
-                    float aspectRatio = (float)bitmap.getWidth() / (float)bitmap.getHeight();
-                    if (aspectRatio > 1) {
-                        bitmap = Bitmap.createScaledBitmap(bitmap, maxWidth, (int)(maxWidth / aspectRatio), true);
-                    } else {
-                        bitmap = Bitmap.createScaledBitmap(bitmap, (int)(maxHeight * aspectRatio), maxHeight, true);
-                    }
-                }
-
-                imageView.setImageBitmap(bitmap);
-                imageView.setAdjustViewBounds(true);
-                imageView.setPadding(0, 0, 0, 10);
-
-                // Updated click handler using FileProvider
-                imageView.setOnClickListener(v -> {
-                    try {
-                        Uri contentUri = FileProvider.getUriForFile(
-                                MainActivity.this,
-                                getPackageName() + ".fileprovider",
-                                file
-                        );
-
-                        Intent intent = new Intent(Intent.ACTION_VIEW);
-                        intent.setDataAndType(contentUri, "image/*");
-                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                        // Verify there's an app to handle this intent
-                        if (intent.resolveActivity(getPackageManager()) != null) {
-                            startActivity(intent);
+                    if (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight) {
+                        float aspectRatio = (float)bitmap.getWidth() / (float)bitmap.getHeight();
+                        if (aspectRatio > 1) {
+                            bitmap = Bitmap.createScaledBitmap(bitmap, maxWidth, (int)(maxWidth / aspectRatio), true);
                         } else {
-                            Toast.makeText(MainActivity.this,
-                                    "No app available to view images",
-                                    Toast.LENGTH_SHORT).show();
+                            bitmap = Bitmap.createScaledBitmap(bitmap, (int)(maxHeight * aspectRatio), maxHeight, true);
                         }
-                    } catch (Exception e) {
-                        Toast.makeText(MainActivity.this,
-                                "Couldn't open image: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
                     }
-                });
 
-                bubbleLayout.addView(imageView);
-            } catch (Exception e) {
-                TextView errorText = new TextView(this);
-                errorText.setText("Couldn't load image");
-                bubbleLayout.addView(errorText);
+                    imageView.setImageBitmap(bitmap);
+                    imageView.setAdjustViewBounds(true);
+                    imageView.setPadding(0, 0, 0, 10);
+
+                    imageView.setOnClickListener(v -> openFile(file, "image/*"));
+                    bubbleLayout.addView(imageView);
+                } catch (Exception e) {
+                    TextView errorText = new TextView(this);
+                    errorText.setText("Couldn't load image");
+                    bubbleLayout.addView(errorText);
+                }
+            } else {
+                // NON-IMAGE FILE: Show file icon and name
+                LinearLayout fileLayout = new LinearLayout(this);
+                fileLayout.setOrientation(LinearLayout.HORIZONTAL);
+                fileLayout.setPadding(10, 10, 10, 10);
+                fileLayout.setBackgroundColor(Color.parseColor("#f0f0f0"));
+
+                // File icon (you can use a simple drawable or text)
+                TextView fileIcon = new TextView(this);
+                fileIcon.setText("📄"); // Using emoji as icon
+                fileIcon.setTextSize(24f);
+                fileIcon.setPadding(0, 0, 15, 0);
+
+                TextView fileText = new TextView(this);
+                fileText.setText(fileName);
+                fileText.setTextColor(Color.BLUE);
+                fileText.setTextSize(15f);
+
+                fileLayout.addView(fileIcon);
+                fileLayout.addView(fileText);
+
+                fileLayout.setOnClickListener(v -> openFile(file, null));
+                bubbleLayout.addView(fileLayout);
             }
         }
 
@@ -900,6 +899,8 @@ public class MainActivity extends AppCompatActivity {
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
+
 
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
@@ -1000,6 +1001,63 @@ public class MainActivity extends AppCompatActivity {
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
 
+    private void openFile(File file, String forcedMimeType) {
+        try {
+            Uri contentUri = FileProvider.getUriForFile(
+                    MainActivity.this,
+                    getPackageName() + ".fileprovider",
+                    file
+            );
+
+            String mimeType = forcedMimeType;
+            if (mimeType == null) {
+                // Auto-detect MIME type based on file extension
+                String fileName = file.getName().toLowerCase();
+                if (fileName.endsWith(".pdf")) {
+                    mimeType = "application/pdf";
+                } else if (fileName.endsWith(".doc") || fileName.endsWith(".docx")) {
+                    mimeType = "application/msword";
+                } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+                    mimeType = "application/vnd.ms-excel";
+                } else if (fileName.endsWith(".ppt") || fileName.endsWith(".pptx")) {
+                    mimeType = "application/vnd.ms-powerpoint";
+                } else if (fileName.endsWith(".txt")) {
+                    mimeType = "text/plain";
+                } else {
+                    // Try to get MIME type from system
+                    mimeType = getContentResolver().getType(contentUri);
+                    if (mimeType == null) {
+                        String extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(file.getName());
+                        mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                        if (mimeType == null) mimeType = "*/*";
+                    }
+                }
+            }
+
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(contentUri, mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // Try to start the activity
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                // If no app can handle the specific MIME type, try with generic type
+                intent.setDataAndType(contentUri, "*/*");
+                try {
+                    startActivity(intent);
+                } catch (Exception e2) {
+                    Toast.makeText(MainActivity.this,
+                            "No app available to open this file type",
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(MainActivity.this,
+                    "Couldn't open file: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
 
 
 
