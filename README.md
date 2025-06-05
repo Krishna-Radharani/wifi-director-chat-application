@@ -9,7 +9,8 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 - Peer-to-peer messaging over Wi-Fi Direct.
 - Separate client and server socket handling.
 - Real-time chat UI with sender/receiver message bubbles.
-- Supports basic message sending and receiving with replying to specific message.
+- Supports basic message and files sending and receiving with replying to specific message and timestamp .
+- Deletion of messages and files
 - Designed for learning socket programming on Android.
 
 ---
