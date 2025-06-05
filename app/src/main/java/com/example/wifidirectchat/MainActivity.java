@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
     ListView listView;
     EditText typeMsg;
     ImageButton sendButton;
-    LinearLayout messageContainer;  // ✅ Add this line
+    LinearLayout messageContainer;
     WifiP2pManager manager;
     WifiP2pManager.Channel channel;
     BroadcastReceiver receiver;
@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
     ServerClass serverClass;
     ClientClass clientClass;
     boolean isHost;
-    ActivityResultLauncher<Intent> wifiSettingsLauncher; //// NEW
+    ActivityResultLauncher<Intent> wifiSettingsLauncher;
     LinearLayout replyLayout;
     TextView replyText;
     ImageView closeReply;
@@ -106,32 +106,30 @@ public class MainActivity extends AppCompatActivity {
     MediaPlayer mediaPlayerReceive;
     static final int PICK_FILE_REQUEST_CODE = 1001;
 
-     FileInputStream fileInputStream;
-     boolean isSendingFile = false;
+    FileInputStream fileInputStream;
+    boolean isSendingFile = false;
 
     OutputStream socketOutputStream;
-     boolean isReceivingFile = false;
-     String currentFileName="";
-     long  currentFileSize=0;
-     FileOutputStream fileOutputStream;
+    boolean isReceivingFile = false;
+    String currentFileName="";
+    long currentFileSize=0;
+    FileOutputStream fileOutputStream;
     LinearLayout chatLayout;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        chatLayout = findViewById(R.id.chatLayout);  // make sure your XML has this ID
+        chatLayout = findViewById(R.id.chatLayout);
 
         Button sendFileButton = findViewById(R.id.button_send_file);
         sendFileButton.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("*/*");  // allow any file type
+            intent.setType("*/*");
             startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
         });
 
-        // Initialize media player with sound resource
         mediaPlayerSend = MediaPlayer.create(this, R.raw.send_sound);
         mediaPlayerReceive = MediaPlayer.create(this, R.raw.receive_sound);
 
@@ -139,12 +137,11 @@ public class MainActivity extends AppCompatActivity {
         messageContainer = findViewById(R.id.messageContainer);
 
         clearChatButton.setOnClickListener(v -> {
-            messageContainer.removeAllViews(); // Clears all message bubbles
+            messageContainer.removeAllViews();
         });
 
-        initialwork(); // important
+        initialwork();
 
-        // 🔽 Add toggle logic here
         Button toggleButton = findViewById(R.id.toggleDeviceListButton);
         ListView deviceListView = findViewById(R.id.listView);
         toggleButton.setOnClickListener(v -> {
@@ -157,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        exqListener(); // keep this after toggle logic
+        exqListener();
 
         replyLayout = findViewById(R.id.replyLayout);
         replyText = findViewById(R.id.replyText);
@@ -179,25 +176,23 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     private void sendFile(Uri fileUri) {
         new Thread(() -> {
             try {
                 ContentResolver contentResolver = getContentResolver();
                 String fileName = getFileName(fileUri);
 
-                // Get file size
                 ParcelFileDescriptor pfd = contentResolver.openFileDescriptor(fileUri, "r");
                 long fileSize = pfd.getStatSize();
                 pfd.close();
 
-                // Send file type (1)
                 if (isHost) {
                     serverClass.write(new byte[]{1}, 0, 1);
                 } else {
                     clientClass.write(new byte[]{1}, 0, 1);
                 }
 
-                // Send file name
                 byte[] fileNameBytes = null;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                     fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
@@ -213,7 +208,6 @@ public class MainActivity extends AppCompatActivity {
                     clientClass.write(fileNameBytes, 0, fileNameBytes.length);
                 }
 
-                // Send file size
                 ByteBuffer sizeBuffer = ByteBuffer.allocate(8);
                 sizeBuffer.putLong(fileSize);
 
@@ -223,7 +217,6 @@ public class MainActivity extends AppCompatActivity {
                     clientClass.write(sizeBuffer.array(), 0, 8);
                 }
 
-                // Send file content
                 try (InputStream inputStream = contentResolver.openInputStream(fileUri)) {
                     byte[] buffer = new byte[8192];
                     int bytesRead;
@@ -237,14 +230,12 @@ public class MainActivity extends AppCompatActivity {
                         }
                         totalSent += bytesRead;
 
-                        // Update progress
                         final long progress = totalSent;
                         runOnUiThread(() ->
                                 connectionStatus.setText("Sending: " + progress + "/" + fileSize));
                     }
                 }
 
-                // Save a copy locally to display
                 File localCopy = new File(getExternalFilesDir(null), fileName);
                 try (InputStream in = contentResolver.openInputStream(fileUri);
                      OutputStream out = new FileOutputStream(localCopy)) {
@@ -269,14 +260,12 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-
-
     private void exqListener() {
         aSwitch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
-                startActivityForResult(intent, 1); // UPDATED
+                startActivityForResult(intent, 1);
             }
         });
         discoverButton.setOnClickListener(new View.OnClickListener() {
@@ -341,14 +330,12 @@ public class MainActivity extends AppCompatActivity {
                                 messageBytes = finalMsg.getBytes(StandardCharsets.UTF_8);
                             }
 
-                            // Send message type (0 for text)
                             if (isHost) {
                                 serverClass.write(new byte[]{0}, 0, 1);
                             } else {
                                 clientClass.write(new byte[]{0}, 0, 1);
                             }
 
-                            // Send message length
                             ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
                             lengthBuffer.putInt(messageBytes.length);
 
@@ -370,8 +357,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
-
     }
 
     private void initialwork() {
@@ -486,7 +471,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         byte messageType = dis.readByte();
 
-                        if (messageType == 0) { // Text message
+                        if (messageType == 0) {
                             int messageLength = dis.readInt();
                             byte[] messageBytes = new byte[messageLength];
                             dis.readFully(messageBytes);
@@ -504,9 +489,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
 
-                        } // In both ServerClass and ClientClass, modify the file receiving part:
-                        else if (messageType == 1) { // File transfer
-                            // Read metadata
+                        } else if (messageType == 1) {
                             int fileNameLength = dis.readInt();
                             byte[] fileNameBytes = new byte[fileNameLength];
                             dis.readFully(fileNameBytes);
@@ -518,7 +501,6 @@ public class MainActivity extends AppCompatActivity {
                             long fileSize = dis.readLong();
                             File outputFile = new File(getExternalFilesDir(null), fileName);
 
-                            // Receive file content
                             try (FileOutputStream fos = new FileOutputStream(outputFile)) {
                                 byte[] buffer = new byte[8192];
                                 long remaining = fileSize;
@@ -531,14 +513,12 @@ public class MainActivity extends AppCompatActivity {
                                     fos.write(buffer, 0, bytesRead);
                                     remaining -= bytesRead;
 
-                                    // Update progress
                                     final long progress = fileSize - remaining;
                                     runOnUiThread(() ->
                                             connectionStatus.setText("Receiving: " + progress + "/" + fileSize));
                                 }
                             }
 
-                            // Verify file was received completely
                             if (outputFile.length() == fileSize) {
                                 final String finalFileName = fileName;
                                 runOnUiThread(() -> {
@@ -583,50 +563,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void handleReceivedData(InputStream inputStream) {
-        new Thread(() -> {
-            try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                String line;
-
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("FILE_TRANSFER_START:")) {
-                        String[] parts = line.split(":");
-                        String fileName = parts[1];
-                        long fileSize = Long.parseLong(parts[2]);
-
-                        // Prepare file output stream
-                        File file = new File(getExternalFilesDir(null), fileName);
-                        FileOutputStream fos = new FileOutputStream(file);
-
-                        byte[] buffer = new byte[4096];
-                        long bytesReceived = 0;
-                        int bytesRead;
-
-                        while (bytesReceived < fileSize &&
-                                (bytesRead = inputStream.read(buffer, 0,
-                                        (int)Math.min(buffer.length, fileSize - bytesReceived))) != -1) {
-                            fos.write(buffer, 0, bytesRead);
-                            bytesReceived += bytesRead;
-                        }
-
-                        fos.close();
-
-                        File finalFile = file;
-                        runOnUiThread(() -> appendFileMessage("Received: " + fileName + "\nPath: " + finalFile.getAbsolutePath(), false));
-                    } else {
-                        // Normal text message
-                        String finalLine = line;
-                        runOnUiThread(() -> appendMessageWithMeta(finalLine, false));
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-
     public class ClientClass extends Thread {
         String hostAdd;
         private InputStream inputStream;
@@ -665,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         byte messageType = dis.readByte();
 
-                        if (messageType == 0) { // Text message
+                        if (messageType == 0) {
                             int messageLength = dis.readInt();
                             byte[] messageBytes = new byte[messageLength];
                             dis.readFully(messageBytes);
@@ -683,9 +619,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
 
-                        } // In both ServerClass and ClientClass, modify the file receiving part:
-                         else if (messageType == 1) { // File transfer
-                            // Read metadata
+                        } else if (messageType == 1) {
                             int fileNameLength = dis.readInt();
                             byte[] fileNameBytes = new byte[fileNameLength];
                             dis.readFully(fileNameBytes);
@@ -697,7 +631,6 @@ public class MainActivity extends AppCompatActivity {
                             long fileSize = dis.readLong();
                             File outputFile = new File(getExternalFilesDir(null), fileName);
 
-                            // Receive file content
                             try (FileOutputStream fos = new FileOutputStream(outputFile)) {
                                 byte[] buffer = new byte[8192];
                                 long remaining = fileSize;
@@ -710,14 +643,12 @@ public class MainActivity extends AppCompatActivity {
                                     fos.write(buffer, 0, bytesRead);
                                     remaining -= bytesRead;
 
-                                    // Update progress
                                     final long progress = fileSize - remaining;
                                     runOnUiThread(() ->
                                             connectionStatus.setText("Receiving: " + progress + "/" + fileSize));
                                 }
                             }
 
-                            // Verify file was received completely
                             if (outputFile.length() == fileSize) {
                                 final String finalFileName = fileName;
                                 runOnUiThread(() -> {
@@ -765,7 +696,6 @@ public class MainActivity extends AppCompatActivity {
 
     private String getFileName(Uri uri) {
         String result = null;
-
         if ("content".equals(uri.getScheme())) {
             Cursor cursor = getContentResolver().query(uri, null, null, null, null);
             if (cursor != null) {
@@ -816,12 +746,10 @@ public class MainActivity extends AppCompatActivity {
 
         if (file.exists()) {
             if (fileName.endsWith(".jpg") || fileName.endsWith(".png") || fileName.endsWith(".jpeg")) {
-                // IMAGE FILE: Show only clickable image + timestamp (no filename)
                 try {
                     ImageView imageView = new ImageView(this);
                     Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
 
-                    // Scale the image
                     int maxWidth = (int)(getResources().getDisplayMetrics().widthPixels * 0.6);
                     int maxHeight = (int)(getResources().getDisplayMetrics().heightPixels * 0.4);
 
@@ -841,7 +769,6 @@ public class MainActivity extends AppCompatActivity {
                     imageView.setOnClickListener(v -> openFile(file, "image/*"));
                     bubbleLayout.addView(imageView);
 
-                    // Add ONLY timestamp for images
                     TextView timestampText = new TextView(this);
                     timestampText.setText(timestamp);
                     timestampText.setTextColor(Color.GRAY);
@@ -855,7 +782,6 @@ public class MainActivity extends AppCompatActivity {
                     bubbleLayout.addView(errorText);
                 }
             } else {
-                // NON-IMAGE FILE: Show clickable filename + timestamp
                 TextView fileText = new TextView(this);
                 fileText.setText("📄 " + fileName + "  " + timestamp);
                 fileText.setTextColor(Color.BLUE);
@@ -877,6 +803,11 @@ public class MainActivity extends AppCompatActivity {
         wrapperParams.setMargins(10, 10, 10, 10);
         wrapperParams.gravity = isSender ? Gravity.END : Gravity.START;
         wrapper.setLayoutParams(wrapperParams);
+
+        wrapper.setOnLongClickListener(v -> {
+            showDeleteDialog(wrapper, file);
+            return true;
+        });
 
         messageContainer.addView(wrapper);
 
@@ -900,7 +831,6 @@ public class MainActivity extends AppCompatActivity {
 
             String mimeType = forcedMimeType;
             if (mimeType == null) {
-                // Auto-detect MIME type based on file extension
                 String fileName = file.getName().toLowerCase();
                 if (fileName.endsWith(".pdf")) {
                     mimeType = "application/pdf";
@@ -913,7 +843,6 @@ public class MainActivity extends AppCompatActivity {
                 } else if (fileName.endsWith(".txt")) {
                     mimeType = "text/plain";
                 } else {
-                    // Try to get MIME type from system
                     mimeType = getContentResolver().getType(contentUri);
                     if (mimeType == null) {
                         String extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(file.getName());
@@ -927,11 +856,9 @@ public class MainActivity extends AppCompatActivity {
             intent.setDataAndType(contentUri, mimeType);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            // Try to start the activity
             try {
                 startActivity(intent);
             } catch (Exception e) {
-                // If no app can handle the specific MIME type, try with generic type
                 intent.setDataAndType(contentUri, "*/*");
                 try {
                     startActivity(intent);
@@ -948,25 +875,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
-        // Extract reply portion if present
         String quotedText = null;
         String actualMessage = message;
 
         if (message.startsWith("Replying to: ")) {
             int index = message.indexOf("\n");
             if (index != -1) {
-                quotedText = message.substring(0, index); // Replying to: xyz
+                quotedText = message.substring(0, index);
                 actualMessage = message.substring(index + 1);
             }
         }
 
         FrameLayout wrapper = new FrameLayout(this);
 
-        // 🧱 Container to hold reply + actual message
         LinearLayout bubbleLayout = new LinearLayout(this);
         bubbleLayout.setOrientation(LinearLayout.VERTICAL);
         bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
@@ -978,18 +902,16 @@ public class MainActivity extends AppCompatActivity {
         );
         bubbleLayout.setLayoutParams(bubbleParams);
 
-        // 🟦 Quoted message block (if any)
         if (quotedText != null) {
             TextView replyQuote = new TextView(this);
             replyQuote.setText(quotedText);
-            replyQuote.setTextColor(Color.parseColor("#1e88e5")); // blue color
-            replyQuote.setBackgroundColor(Color.parseColor("#e3f2fd")); // light blue bg
+            replyQuote.setTextColor(Color.parseColor("#1e88e5"));
+            replyQuote.setBackgroundColor(Color.parseColor("#e3f2fd"));
             replyQuote.setPadding(12, 8, 12, 8);
             replyQuote.setTextSize(13f);
             bubbleLayout.addView(replyQuote);
         }
 
-        // ✉️ Main message
         TextView msgText = new TextView(this);
         msgText.setText(actualMessage + "  " + timestamp);
         msgText.setTextColor(Color.BLACK);
@@ -997,7 +919,6 @@ public class MainActivity extends AppCompatActivity {
         msgText.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.75));
         bubbleLayout.addView(msgText);
 
-        // 🖼️ If actual message contains a path to an image file, try displaying it
         if ((actualMessage.contains("/storage") || actualMessage.contains(getExternalFilesDir(null).getAbsolutePath()))
                 && (actualMessage.endsWith(".jpg") || actualMessage.endsWith(".png") || actualMessage.endsWith(".jpeg"))) {
 
@@ -1013,10 +934,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Add bubbleLayout into wrapper
         wrapper.addView(bubbleLayout);
 
-        // Set LayoutParams for wrapper
         LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1025,7 +944,11 @@ public class MainActivity extends AppCompatActivity {
         wrapperParams.gravity = isSender ? Gravity.END : Gravity.START;
         wrapper.setLayoutParams(wrapperParams);
 
-        // 💬 Swipe reply trigger
+        wrapper.setOnLongClickListener(v -> {
+            showDeleteDialog(wrapper, null);
+            return true;
+        });
+
         String finalActualMessage = actualMessage;
         wrapper.setOnTouchListener(new OnSwipeTouchListener(this) {
             public void onSwipeRight() {
@@ -1036,7 +959,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Add to chat
         messageContainer.addView(wrapper);
         if (!isSender && mediaPlayerReceive != null) {
             mediaPlayerReceive.start();
@@ -1048,8 +970,32 @@ public class MainActivity extends AppCompatActivity {
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
 
+    private void showDeleteDialog(View messageView, File fileToDelete) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("Delete Message");
+        builder.setMessage("Are you sure you want to delete this message?");
 
+        builder.setPositiveButton("Delete", (dialog, which) -> {
+            messageContainer.removeView(messageView);
 
+            if (fileToDelete != null && fileToDelete.exists()) {
+                boolean deleted = fileToDelete.delete();
+                if (deleted) {
+                    Toast.makeText(this, "File deleted successfully", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Failed to delete file", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Message deleted", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        builder.show();
+    }
 
     public class OnSwipeTouchListener implements View.OnTouchListener {
         private final GestureDetector gestureDetector;
@@ -1060,7 +1006,11 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-            return gestureDetector.onTouchEvent(event);
+            boolean result = gestureDetector.onTouchEvent(event);
+            if (!result) {
+                return false; // Allow other touch listeners (like long press) to work
+            }
+            return result;
         }
 
         private final class GestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -1069,7 +1019,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public boolean onDown(MotionEvent e) {
-                return true;
+                return false; // FIXED: Changed from true to false to allow long press
             }
 
             @Override
@@ -1077,8 +1027,10 @@ public class MainActivity extends AppCompatActivity {
                 float diffX = e2.getX() - e1.getX();
                 if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
-                        if (diffX > 0) onSwipeRight();
-                        return true;
+                        if (diffX > 0) {
+                            onSwipeRight();
+                            return true;
+                        }
                     }
                 }
                 return false;
@@ -1089,8 +1041,4 @@ public class MainActivity extends AppCompatActivity {
             // Override in usage
         }
     }
-
-
-
-
 }
