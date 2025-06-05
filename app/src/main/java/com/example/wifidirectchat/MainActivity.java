@@ -2,8 +2,17 @@ package com.example.wifidirectchat;
 
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Build;
+import android.os.ParcelFileDescriptor;
+import android.provider.OpenableColumns;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.widget.FrameLayout;
@@ -37,18 +46,31 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -76,19 +98,38 @@ public class MainActivity extends AppCompatActivity {
     ClientClass clientClass;
     boolean isHost;
     ActivityResultLauncher<Intent> wifiSettingsLauncher; //// NEW
-
-     LinearLayout replyLayout;
-     TextView replyText;
-     ImageView closeReply;
-     String replyingToMessage = null;
+    LinearLayout replyLayout;
+    TextView replyText;
+    ImageView closeReply;
+    String replyingToMessage = null;
     MediaPlayer mediaPlayerSend;
     MediaPlayer mediaPlayerReceive;
+    static final int PICK_FILE_REQUEST_CODE = 1001;
+
+     FileInputStream fileInputStream;
+     boolean isSendingFile = false;
+
+    OutputStream socketOutputStream;
+     boolean isReceivingFile = false;
+     String currentFileName="";
+     long  currentFileSize=0;
+     FileOutputStream fileOutputStream;
+    LinearLayout chatLayout;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        chatLayout = findViewById(R.id.chatLayout);  // make sure your XML has this ID
+
+        Button sendFileButton = findViewById(R.id.button_send_file);
+        sendFileButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");  // allow any file type
+            startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
+        });
 
         // Initialize media player with sound resource
         mediaPlayerSend = MediaPlayer.create(this, R.raw.send_sound);
@@ -126,6 +167,106 @@ public class MainActivity extends AppCompatActivity {
             replyingToMessage = null;
             replyLayout.setVisibility(View.GONE);
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_FILE_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+            Uri fileUri = data.getData();
+            if (fileUri != null) {
+                sendFile(fileUri);
+            }
+        }
+    }
+    private void sendFile(Uri fileUri) {
+        new Thread(() -> {
+            try {
+                ContentResolver contentResolver = getContentResolver();
+                String fileName = getFileName(fileUri);
+
+                // Get file size
+                ParcelFileDescriptor pfd = contentResolver.openFileDescriptor(fileUri, "r");
+                long fileSize = pfd.getStatSize();
+                pfd.close();
+
+                // Send file type (1)
+                if (isHost) {
+                    serverClass.write(new byte[]{1}, 0, 1);
+                } else {
+                    clientClass.write(new byte[]{1}, 0, 1);
+                }
+
+                // Send file name
+                byte[] fileNameBytes = null;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
+                }
+                ByteBuffer fileNameLength = ByteBuffer.allocate(4);
+                fileNameLength.putInt(fileNameBytes.length);
+
+                if (isHost) {
+                    serverClass.write(fileNameLength.array(), 0, 4);
+                    serverClass.write(fileNameBytes, 0, fileNameBytes.length);
+                } else {
+                    clientClass.write(fileNameLength.array(), 0, 4);
+                    clientClass.write(fileNameBytes, 0, fileNameBytes.length);
+                }
+
+                // Send file size
+                ByteBuffer sizeBuffer = ByteBuffer.allocate(8);
+                sizeBuffer.putLong(fileSize);
+
+                if (isHost) {
+                    serverClass.write(sizeBuffer.array(), 0, 8);
+                } else {
+                    clientClass.write(sizeBuffer.array(), 0, 8);
+                }
+
+                // Send file content
+                try (InputStream inputStream = contentResolver.openInputStream(fileUri)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    long totalSent = 0;
+
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        if (isHost) {
+                            serverClass.write(buffer, 0, bytesRead);
+                        } else {
+                            clientClass.write(buffer, 0, bytesRead);
+                        }
+                        totalSent += bytesRead;
+
+                        // Update progress
+                        final long progress = totalSent;
+                        runOnUiThread(() ->
+                                connectionStatus.setText("Sending: " + progress + "/" + fileSize));
+                    }
+                }
+
+                // Save a copy locally to display
+                File localCopy = new File(getExternalFilesDir(null), fileName);
+                try (InputStream in = contentResolver.openInputStream(fileUri);
+                     OutputStream out = new FileOutputStream(localCopy)) {
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        out.write(buf, 0, len);
+                    }
+                }
+
+                runOnUiThread(() -> {
+                    appendFileMessage("Sent: " + fileName, true);
+                    Toast.makeText(MainActivity.this, "File sent successfully", Toast.LENGTH_SHORT).show();
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "Error sending file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 
 
@@ -187,30 +328,43 @@ public class MainActivity extends AppCompatActivity {
                     }
                     appendMessageWithMeta(msg, true);
 
-                    // Play sound on send
                     if(mediaPlayerSend != null){
                         mediaPlayerSend.start();
                     }
 
-
                     ExecutorService executor = Executors.newSingleThreadExecutor();
                     String finalMsg = msg;
-                    executor.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (isHost) {
-                                serverClass.write(finalMsg.getBytes());
-                            } else {
-                                clientClass.write(finalMsg.getBytes());
+                    executor.execute(() -> {
+                        try {
+                            byte[] messageBytes = null;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                messageBytes = finalMsg.getBytes(StandardCharsets.UTF_8);
                             }
 
-                            // ✅ Clear input box
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    typeMsg.setText("");
-                                }
-                            });
+                            // Send message type (0 for text)
+                            if (isHost) {
+                                serverClass.write(new byte[]{0}, 0, 1);
+                            } else {
+                                clientClass.write(new byte[]{0}, 0, 1);
+                            }
+
+                            // Send message length
+                            ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+                            lengthBuffer.putInt(messageBytes.length);
+
+                            if (isHost) {
+                                serverClass.write(lengthBuffer.array(), 0, 4);
+                                serverClass.write(messageBytes, 0, messageBytes.length);
+                            } else {
+                                clientClass.write(lengthBuffer.array(), 0, 4);
+                                clientClass.write(messageBytes, 0, messageBytes.length);
+                            }
+
+                            runOnUiThread(() -> typeMsg.setText(""));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            runOnUiThread(() ->
+                                    Toast.makeText(MainActivity.this, "Error sending message", Toast.LENGTH_SHORT).show());
                         }
                     });
                 }
@@ -301,11 +455,16 @@ public class MainActivity extends AppCompatActivity {
         private InputStream inputStream;
         private OutputStream outputStream;
 
-        public void write(byte[] bytes) {
+        public void write(byte[] bytes, int offset, int length) {
             try {
-                outputStream.write(bytes);
+                if (outputStream != null) {
+                    outputStream.write(bytes, offset, length);
+                    outputStream.flush();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("ServerClass", "Write error: " + e.getMessage());
+                runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, "Connection error", Toast.LENGTH_SHORT).show());
             }
         }
 
@@ -313,43 +472,160 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             try {
                 serverSocket = new ServerSocket(8888);
+                Log.d("ServerClass", "Server started");
+
                 socket = serverSocket.accept();
+                Log.d("ServerClass", "Client connected");
+
                 inputStream = socket.getInputStream();
                 outputStream = socket.getOutputStream();
+
+                DataInputStream dis = new DataInputStream(new BufferedInputStream(inputStream));
+
+                while (!isInterrupted() && socket != null && !socket.isClosed()) {
+                    try {
+                        byte messageType = dis.readByte();
+
+                        if (messageType == 0) { // Text message
+                            int messageLength = dis.readInt();
+                            byte[] messageBytes = new byte[messageLength];
+                            dis.readFully(messageBytes);
+                            String message;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                message = new String(messageBytes, StandardCharsets.UTF_8);
+                            } else {
+                                message = null;
+                            }
+
+                            runOnUiThread(() -> {
+                                appendMessageWithMeta(message, false);
+                                if (mediaPlayerReceive != null) {
+                                    mediaPlayerReceive.start();
+                                }
+                            });
+
+                        } // In both ServerClass and ClientClass, modify the file receiving part:
+                        else if (messageType == 1) { // File transfer
+                            // Read metadata
+                            int fileNameLength = dis.readInt();
+                            byte[] fileNameBytes = new byte[fileNameLength];
+                            dis.readFully(fileNameBytes);
+                            String fileName = null;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
+                            }
+
+                            long fileSize = dis.readLong();
+                            File outputFile = new File(getExternalFilesDir(null), fileName);
+
+                            // Receive file content
+                            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                                byte[] buffer = new byte[8192];
+                                long remaining = fileSize;
+
+                                while (remaining > 0) {
+                                    int bytesToRead = (int) Math.min(buffer.length, remaining);
+                                    int bytesRead = dis.read(buffer, 0, bytesToRead);
+                                    if (bytesRead == -1) break;
+
+                                    fos.write(buffer, 0, bytesRead);
+                                    remaining -= bytesRead;
+
+                                    // Update progress
+                                    final long progress = fileSize - remaining;
+                                    runOnUiThread(() ->
+                                            connectionStatus.setText("Receiving: " + progress + "/" + fileSize));
+                                }
+                            }
+
+                            // Verify file was received completely
+                            if (outputFile.length() == fileSize) {
+                                final String finalFileName = fileName;
+                                runOnUiThread(() -> {
+                                    appendFileMessage("Received: " + finalFileName, false);
+                                    if (mediaPlayerReceive != null) {
+                                        mediaPlayerReceive.start();
+                                    }
+                                    Toast.makeText(MainActivity.this, "File received successfully", Toast.LENGTH_SHORT).show();
+                                });
+                            } else {
+                                outputFile.delete();
+                                runOnUiThread(() ->
+                                        Toast.makeText(MainActivity.this, "File transfer incomplete", Toast.LENGTH_LONG).show());
+                            }
+                        }
+                    } catch (EOFException e) {
+                        Log.d("ServerClass", "Connection closed by client");
+                        break;
+                    } catch (IOException e) {
+                        Log.e("ServerClass", "Read error: " + e.getMessage());
+                        break;
+                    }
+                }
+            } catch (IOException e) {
+                Log.e("ServerClass", "Server error: " + e.getMessage());
+            } finally {
+                closeConnection();
+            }
+        }
+
+        private void closeConnection() {
+            try {
+                if (inputStream != null) inputStream.close();
+                if (outputStream != null) outputStream.close();
+                if (socket != null) socket.close();
+                if (serverSocket != null) serverSocket.close();
+            } catch (IOException e) {
+                Log.e("ServerClass", "Error closing resources: " + e.getMessage());
+            }
+
+            runOnUiThread(() -> connectionStatus.setText("Disconnected"));
+        }
+    }
+
+    private void handleReceivedData(InputStream inputStream) {
+        new Thread(() -> {
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("FILE_TRANSFER_START:")) {
+                        String[] parts = line.split(":");
+                        String fileName = parts[1];
+                        long fileSize = Long.parseLong(parts[2]);
+
+                        // Prepare file output stream
+                        File file = new File(getExternalFilesDir(null), fileName);
+                        FileOutputStream fos = new FileOutputStream(file);
+
+                        byte[] buffer = new byte[4096];
+                        long bytesReceived = 0;
+                        int bytesRead;
+
+                        while (bytesReceived < fileSize &&
+                                (bytesRead = inputStream.read(buffer, 0,
+                                        (int)Math.min(buffer.length, fileSize - bytesReceived))) != -1) {
+                            fos.write(buffer, 0, bytesRead);
+                            bytesReceived += bytesRead;
+                        }
+
+                        fos.close();
+
+                        File finalFile = file;
+                        runOnUiThread(() -> appendFileMessage("Received: " + fileName + "\nPath: " + finalFile.getAbsolutePath(), false));
+                    } else {
+                        // Normal text message
+                        String finalLine = line;
+                        runOnUiThread(() -> appendMessageWithMeta(finalLine, false));
+                    }
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            Handler handler = new Handler(Looper.getMainLooper());
-
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    byte[] buffer = new byte[1024];
-                    int bytes;
-                    while (socket != null) {
-                        try {
-                            bytes = inputStream.read(buffer);
-                            if (bytes > 0) {
-                                int finalBytes = bytes;
-                                handler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        String tempMSG = new String(buffer, 0, finalBytes);
-                                        appendMessageWithMeta( tempMSG,false);
-
-                                    }
-                                });
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            });
-        }
+        }).start();
     }
+
 
     public class ClientClass extends Thread {
         String hostAdd;
@@ -361,54 +637,270 @@ public class MainActivity extends AppCompatActivity {
             socket = new Socket();
         }
 
-        public void write(byte[] bytes) {
+        public void write(byte[] bytes, int offset, int length) {
             try {
-                outputStream.write(bytes);
+                if (outputStream != null) {
+                    outputStream.write(bytes, offset, length);
+                    outputStream.flush();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e("ClientClass", "Write error: " + e.getMessage());
+                runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, "Connection error", Toast.LENGTH_SHORT).show());
             }
         }
 
         @Override
         public void run() {
             try {
-                socket.connect(new InetSocketAddress(hostAdd, 8888), 500);
+                socket.connect(new InetSocketAddress(hostAdd, 8888), 5000);
+                Log.d("ClientClass", "Connected to server");
+
                 inputStream = socket.getInputStream();
                 outputStream = socket.getOutputStream();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
 
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            Handler handler = new Handler(Looper.getMainLooper());
+                DataInputStream dis = new DataInputStream(new BufferedInputStream(inputStream));
 
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    byte[] buffer = new byte[1024];
-                    int bytes;
-                    while (socket != null) {
-                        try {
-                            bytes = inputStream.read(buffer);
-                            if (bytes > 0) {
-                                int finalBytes = bytes;
-                                handler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        String tempMSG = new String(buffer, 0, finalBytes);
-                                        appendMessageWithMeta(tempMSG,false);
+                while (!isInterrupted() && socket != null && !socket.isClosed()) {
+                    try {
+                        byte messageType = dis.readByte();
 
-                                    }
-                                });
+                        if (messageType == 0) { // Text message
+                            int messageLength = dis.readInt();
+                            byte[] messageBytes = new byte[messageLength];
+                            dis.readFully(messageBytes);
+                            String message;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                message = new String(messageBytes, StandardCharsets.UTF_8);
+                            } else {
+                                message = null;
                             }
-                        } catch (IOException e) {
-                            e.printStackTrace();
+
+                            runOnUiThread(() -> {
+                                appendMessageWithMeta(message, false);
+                                if (mediaPlayerReceive != null) {
+                                    mediaPlayerReceive.start();
+                                }
+                            });
+
+                        } // In both ServerClass and ClientClass, modify the file receiving part:
+                         else if (messageType == 1) { // File transfer
+                            // Read metadata
+                            int fileNameLength = dis.readInt();
+                            byte[] fileNameBytes = new byte[fileNameLength];
+                            dis.readFully(fileNameBytes);
+                            String fileName = null;
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
+                            }
+
+                            long fileSize = dis.readLong();
+                            File outputFile = new File(getExternalFilesDir(null), fileName);
+
+                            // Receive file content
+                            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                                byte[] buffer = new byte[8192];
+                                long remaining = fileSize;
+
+                                while (remaining > 0) {
+                                    int bytesToRead = (int) Math.min(buffer.length, remaining);
+                                    int bytesRead = dis.read(buffer, 0, bytesToRead);
+                                    if (bytesRead == -1) break;
+
+                                    fos.write(buffer, 0, bytesRead);
+                                    remaining -= bytesRead;
+
+                                    // Update progress
+                                    final long progress = fileSize - remaining;
+                                    runOnUiThread(() ->
+                                            connectionStatus.setText("Receiving: " + progress + "/" + fileSize));
+                                }
+                            }
+
+                            // Verify file was received completely
+                            if (outputFile.length() == fileSize) {
+                                final String finalFileName = fileName;
+                                runOnUiThread(() -> {
+                                    appendFileMessage("Received: " + finalFileName, false);
+                                    if (mediaPlayerReceive != null) {
+                                        mediaPlayerReceive.start();
+                                    }
+                                    Toast.makeText(MainActivity.this, "File received successfully", Toast.LENGTH_SHORT).show();
+                                });
+                            } else {
+                                outputFile.delete();
+                                runOnUiThread(() ->
+                                        Toast.makeText(MainActivity.this, "File transfer incomplete", Toast.LENGTH_LONG).show());
+                            }
                         }
+                    } catch (EOFException e) {
+                        Log.d("ClientClass", "Connection closed by server");
+                        break;
+                    } catch (IOException e) {
+                        Log.e("ClientClass", "Read error: " + e.getMessage());
+                        break;
                     }
                 }
-            });
+            } catch (IOException e) {
+                Log.e("ClientClass", "Connection error: " + e.getMessage());
+                runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, "Failed to connect", Toast.LENGTH_SHORT).show());
+            } finally {
+                closeConnection();
+            }
+        }
+
+        private void closeConnection() {
+            try {
+                if (inputStream != null) inputStream.close();
+                if (outputStream != null) outputStream.close();
+                if (socket != null) socket.close();
+            } catch (IOException e) {
+                Log.e("ClientClass", "Error closing resources: " + e.getMessage());
+            }
+
+            runOnUiThread(() -> connectionStatus.setText("Disconnected"));
         }
     }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+
+        if ("content".equals(uri.getScheme())) {
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+            if (cursor != null) {
+                try {
+                    if (cursor.moveToFirst()) {
+                        int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                        if (nameIndex != -1) {
+                            result = cursor.getString(nameIndex);
+                        }
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        }
+
+        if (result == null) {
+            String path = uri.getPath();
+            if (path != null) {
+                int cut = path.lastIndexOf('/');
+                if (cut != -1) {
+                    result = path.substring(cut + 1);
+                } else {
+                    result = path;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private void appendFileMessage(String message, boolean isSender) {
+        String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+        String fileName = message.replace("Sent: ", "").replace("Received: ", "").trim();
+        File file = new File(getExternalFilesDir(null), fileName);
+
+        FrameLayout wrapper = new FrameLayout(this);
+        LinearLayout bubbleLayout = new LinearLayout(this);
+        bubbleLayout.setOrientation(LinearLayout.VERTICAL);
+        bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+        bubbleLayout.setPadding(20, 14, 20, 14);
+
+        LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        bubbleLayout.setLayoutParams(bubbleParams);
+
+        if (file.exists() && (fileName.endsWith(".jpg") || fileName.endsWith(".png") || fileName.endsWith(".jpeg"))) {
+            try {
+                ImageView imageView = new ImageView(this);
+                Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
+
+                // Scale the image
+                int maxWidth = (int)(getResources().getDisplayMetrics().widthPixels * 0.6);
+                int maxHeight = (int)(getResources().getDisplayMetrics().heightPixels * 0.4);
+
+                if (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight) {
+                    float aspectRatio = (float)bitmap.getWidth() / (float)bitmap.getHeight();
+                    if (aspectRatio > 1) {
+                        bitmap = Bitmap.createScaledBitmap(bitmap, maxWidth, (int)(maxWidth / aspectRatio), true);
+                    } else {
+                        bitmap = Bitmap.createScaledBitmap(bitmap, (int)(maxHeight * aspectRatio), maxHeight, true);
+                    }
+                }
+
+                imageView.setImageBitmap(bitmap);
+                imageView.setAdjustViewBounds(true);
+                imageView.setPadding(0, 0, 0, 10);
+
+                // Updated click handler using FileProvider
+                imageView.setOnClickListener(v -> {
+                    try {
+                        Uri contentUri = FileProvider.getUriForFile(
+                                MainActivity.this,
+                                getPackageName() + ".fileprovider",
+                                file
+                        );
+
+                        Intent intent = new Intent(Intent.ACTION_VIEW);
+                        intent.setDataAndType(contentUri, "image/*");
+                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                        // Verify there's an app to handle this intent
+                        if (intent.resolveActivity(getPackageManager()) != null) {
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(MainActivity.this,
+                                    "No app available to view images",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(MainActivity.this,
+                                "Couldn't open image: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                bubbleLayout.addView(imageView);
+            } catch (Exception e) {
+                TextView errorText = new TextView(this);
+                errorText.setText("Couldn't load image");
+                bubbleLayout.addView(errorText);
+            }
+        }
+
+        TextView msgText = new TextView(this);
+        msgText.setText(fileName + "  " + timestamp);
+        msgText.setTextColor(Color.BLACK);
+        msgText.setTextSize(14f);
+        msgText.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.75));
+        bubbleLayout.addView(msgText);
+
+        wrapper.addView(bubbleLayout);
+
+        LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        wrapperParams.setMargins(10, 10, 10, 10);
+        wrapperParams.gravity = isSender ? Gravity.END : Gravity.START;
+        wrapper.setLayoutParams(wrapperParams);
+
+        messageContainer.addView(wrapper);
+
+        if (!isSender && mediaPlayerReceive != null) {
+            mediaPlayerReceive.start();
+        } else if (isSender && mediaPlayerSend != null) {
+            mediaPlayerSend.start();
+        }
+
+        ScrollView scrollView = findViewById(R.id.scrollView);
+        scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+    }
+
     private void appendMessageWithMeta(String message, boolean isSender) {
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
@@ -431,14 +923,14 @@ public class MainActivity extends AppCompatActivity {
         bubbleLayout.setOrientation(LinearLayout.VERTICAL);
         bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
         bubbleLayout.setPadding(20, 14, 20, 14);
+
         LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-// ✅ Removed width override
         bubbleLayout.setLayoutParams(bubbleParams);
 
-// 🟦 Quoted message block (if any)
+        // 🟦 Quoted message block (if any)
         if (quotedText != null) {
             TextView replyQuote = new TextView(this);
             replyQuote.setText(quotedText);
@@ -446,24 +938,35 @@ public class MainActivity extends AppCompatActivity {
             replyQuote.setBackgroundColor(Color.parseColor("#e3f2fd")); // light blue bg
             replyQuote.setPadding(12, 8, 12, 8);
             replyQuote.setTextSize(13f);
-
             bubbleLayout.addView(replyQuote);
         }
 
-// ✉️ Main message
+        // ✉️ Main message
         TextView msgText = new TextView(this);
         msgText.setText(actualMessage + "  " + timestamp);
         msgText.setTextColor(Color.BLACK);
         msgText.setTextSize(16f);
-
-// ✅ Constrain long messages to wrap
-        msgText.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.75));
-
+        msgText.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.75));
         bubbleLayout.addView(msgText);
 
-// Add bubbleLayout into wrapper
-        wrapper.addView(bubbleLayout);
+        // 🖼️ If actual message contains a path to an image file, try displaying it
+        if ((actualMessage.contains("/storage") || actualMessage.contains(getExternalFilesDir(null).getAbsolutePath()))
+                && (actualMessage.endsWith(".jpg") || actualMessage.endsWith(".png") || actualMessage.endsWith(".jpeg"))) {
 
+            File imageFile = new File(actualMessage.trim());
+            if (imageFile.exists()) {
+                ImageView imageView = new ImageView(this);
+                imageView.setImageURI(Uri.fromFile(imageFile));
+                LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(500, 500);
+                imageParams.setMargins(0, 10, 0, 0);
+                imageView.setLayoutParams(imageParams);
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                bubbleLayout.addView(imageView);
+            }
+        }
+
+        // Add bubbleLayout into wrapper
+        wrapper.addView(bubbleLayout);
 
         // Set LayoutParams for wrapper
         LinearLayout.LayoutParams wrapperParams = new LinearLayout.LayoutParams(
@@ -472,7 +975,6 @@ public class MainActivity extends AppCompatActivity {
         );
         wrapperParams.setMargins(10, 10, 10, 10);
         wrapperParams.gravity = isSender ? Gravity.END : Gravity.START;
-
         wrapper.setLayoutParams(wrapperParams);
 
         // 💬 Swipe reply trigger
@@ -488,16 +990,16 @@ public class MainActivity extends AppCompatActivity {
 
         // Add to chat
         messageContainer.addView(wrapper);
-        if (!isSender && mediaPlayerReceive  != null) {
-            mediaPlayerReceive .start();
-        }else if (isSender && mediaPlayerSend != null) {
+        if (!isSender && mediaPlayerReceive != null) {
+            mediaPlayerReceive.start();
+        } else if (isSender && mediaPlayerSend != null) {
             mediaPlayerSend.start();
         }
-
 
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
 
 
 
