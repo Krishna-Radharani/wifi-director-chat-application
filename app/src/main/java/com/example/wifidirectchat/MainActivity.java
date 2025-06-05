@@ -816,7 +816,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (file.exists()) {
             if (fileName.endsWith(".jpg") || fileName.endsWith(".png") || fileName.endsWith(".jpeg")) {
-                // IMAGE FILE: Show thumbnail
+                // IMAGE FILE: Show only clickable image + timestamp (no filename)
                 try {
                     ImageView imageView = new ImageView(this);
                     Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
@@ -840,43 +840,33 @@ public class MainActivity extends AppCompatActivity {
 
                     imageView.setOnClickListener(v -> openFile(file, "image/*"));
                     bubbleLayout.addView(imageView);
+
+                    // Add ONLY timestamp for images
+                    TextView timestampText = new TextView(this);
+                    timestampText.setText(timestamp);
+                    timestampText.setTextColor(Color.GRAY);
+                    timestampText.setTextSize(12f);
+                    timestampText.setGravity(Gravity.END);
+                    bubbleLayout.addView(timestampText);
+
                 } catch (Exception e) {
                     TextView errorText = new TextView(this);
                     errorText.setText("Couldn't load image");
                     bubbleLayout.addView(errorText);
                 }
             } else {
-                // NON-IMAGE FILE: Show file icon and name
-                LinearLayout fileLayout = new LinearLayout(this);
-                fileLayout.setOrientation(LinearLayout.HORIZONTAL);
-                fileLayout.setPadding(10, 10, 10, 10);
-                fileLayout.setBackgroundColor(Color.parseColor("#f0f0f0"));
-
-                // File icon (you can use a simple drawable or text)
-                TextView fileIcon = new TextView(this);
-                fileIcon.setText("📄"); // Using emoji as icon
-                fileIcon.setTextSize(24f);
-                fileIcon.setPadding(0, 0, 15, 0);
-
+                // NON-IMAGE FILE: Show clickable filename + timestamp
                 TextView fileText = new TextView(this);
-                fileText.setText(fileName);
+                fileText.setText("📄 " + fileName + "  " + timestamp);
                 fileText.setTextColor(Color.BLUE);
                 fileText.setTextSize(15f);
+                fileText.setPadding(10, 10, 10, 10);
+                fileText.setBackgroundColor(Color.parseColor("#f0f0f0"));
 
-                fileLayout.addView(fileIcon);
-                fileLayout.addView(fileText);
-
-                fileLayout.setOnClickListener(v -> openFile(file, null));
-                bubbleLayout.addView(fileLayout);
+                fileText.setOnClickListener(v -> openFile(file, null));
+                bubbleLayout.addView(fileText);
             }
         }
-
-        TextView msgText = new TextView(this);
-        msgText.setText(fileName + "  " + timestamp);
-        msgText.setTextColor(Color.BLACK);
-        msgText.setTextSize(14f);
-        msgText.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels * 0.75));
-        bubbleLayout.addView(msgText);
 
         wrapper.addView(bubbleLayout);
 
@@ -900,6 +890,63 @@ public class MainActivity extends AppCompatActivity {
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
 
+    private void openFile(File file, String forcedMimeType) {
+        try {
+            Uri contentUri = FileProvider.getUriForFile(
+                    MainActivity.this,
+                    getPackageName() + ".fileprovider",
+                    file
+            );
+
+            String mimeType = forcedMimeType;
+            if (mimeType == null) {
+                // Auto-detect MIME type based on file extension
+                String fileName = file.getName().toLowerCase();
+                if (fileName.endsWith(".pdf")) {
+                    mimeType = "application/pdf";
+                } else if (fileName.endsWith(".doc") || fileName.endsWith(".docx")) {
+                    mimeType = "application/msword";
+                } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
+                    mimeType = "application/vnd.ms-excel";
+                } else if (fileName.endsWith(".ppt") || fileName.endsWith(".pptx")) {
+                    mimeType = "application/vnd.ms-powerpoint";
+                } else if (fileName.endsWith(".txt")) {
+                    mimeType = "text/plain";
+                } else {
+                    // Try to get MIME type from system
+                    mimeType = getContentResolver().getType(contentUri);
+                    if (mimeType == null) {
+                        String extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(file.getName());
+                        mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                        if (mimeType == null) mimeType = "*/*";
+                    }
+                }
+            }
+
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(contentUri, mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // Try to start the activity
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                // If no app can handle the specific MIME type, try with generic type
+                intent.setDataAndType(contentUri, "*/*");
+                try {
+                    startActivity(intent);
+                } catch (Exception e2) {
+                    Toast.makeText(MainActivity.this,
+                            "No app available to open this file type",
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(MainActivity.this,
+                    "Couldn't open file: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
 
 
     private void appendMessageWithMeta(String message, boolean isSender) {
@@ -1001,63 +1048,6 @@ public class MainActivity extends AppCompatActivity {
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
 
-    private void openFile(File file, String forcedMimeType) {
-        try {
-            Uri contentUri = FileProvider.getUriForFile(
-                    MainActivity.this,
-                    getPackageName() + ".fileprovider",
-                    file
-            );
-
-            String mimeType = forcedMimeType;
-            if (mimeType == null) {
-                // Auto-detect MIME type based on file extension
-                String fileName = file.getName().toLowerCase();
-                if (fileName.endsWith(".pdf")) {
-                    mimeType = "application/pdf";
-                } else if (fileName.endsWith(".doc") || fileName.endsWith(".docx")) {
-                    mimeType = "application/msword";
-                } else if (fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
-                    mimeType = "application/vnd.ms-excel";
-                } else if (fileName.endsWith(".ppt") || fileName.endsWith(".pptx")) {
-                    mimeType = "application/vnd.ms-powerpoint";
-                } else if (fileName.endsWith(".txt")) {
-                    mimeType = "text/plain";
-                } else {
-                    // Try to get MIME type from system
-                    mimeType = getContentResolver().getType(contentUri);
-                    if (mimeType == null) {
-                        String extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(file.getName());
-                        mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
-                        if (mimeType == null) mimeType = "*/*";
-                    }
-                }
-            }
-
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(contentUri, mimeType);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            // Try to start the activity
-            try {
-                startActivity(intent);
-            } catch (Exception e) {
-                // If no app can handle the specific MIME type, try with generic type
-                intent.setDataAndType(contentUri, "*/*");
-                try {
-                    startActivity(intent);
-                } catch (Exception e2) {
-                    Toast.makeText(MainActivity.this,
-                            "No app available to open this file type",
-                            Toast.LENGTH_SHORT).show();
-                }
-            }
-        } catch (Exception e) {
-            Toast.makeText(MainActivity.this,
-                    "Couldn't open file: " + e.getMessage(),
-                    Toast.LENGTH_SHORT).show();
-        }
-    }
 
 
 
