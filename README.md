@@ -57,9 +57,9 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
  
 ## Screenshot
 
-![App Screenshot](image1.JPG)
-![App Screenshot](image2.JPG)
-![App Screenshot](image3.JPG)
+![App Screenshot](image1.jpg)
+![App Screenshot](image2.jpg)
+![App Screenshot](image3.jpg)
 
 ---
 
