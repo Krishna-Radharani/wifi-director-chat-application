@@ -35,6 +35,8 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 2. Open the project in Android Studio.
 
 3. Build and run on two devices/emulators.
+4. 
+---
 
 ### Usage
 1. Launch the app on two devices connected to the same Wi-Fi Direct group.
@@ -50,6 +52,16 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 - File transfer feature is not enabled due to bugs.
 
 - Both devices must be connected over Wi-Fi Direct (P2P).
+  
+ ---
+ 
+## Screenshot
+
+![App Screenshot](image1.JPG)
+![App Screenshot](image2.JPG)
+![App Screenshot](image3.JPG)
+
+---
 
 ## Required Permissions
 
@@ -61,10 +73,5 @@ This app requires the following permissions declared in your `AndroidManifest.xm
 <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-## Screenshot
-
-![App Screenshot](image1.JPG)
-![App Screenshot](image2.JPG)
-![App Screenshot](image3.JPG)
 
 
