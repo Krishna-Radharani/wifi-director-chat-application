@@ -157,7 +157,8 @@
         android:background="@drawable/edit_text_background"
         android:padding="8dp"
         android:elevation="2dp"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
 
         <EditText
             android:id="@+id/editTextTypeMsg"
@@ -169,12 +170,15 @@
             android:minHeight="48dp"
             android:textColor="@color/black"
             android:background="@android:color/transparent" />
-        <Button
-            android:id="@+id/button_send_file"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Send File" />
 
+        <ImageButton
+            android:id="@+id/button_send_file"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_menu_upload"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Send File"
+            android:padding="8dp" />
 
         <ImageButton
             android:id="@+id/sendButton"
@@ -186,6 +190,7 @@
             app:tint="@color/purple_500"
             android:padding="8dp" />
     </LinearLayout>
+
 
 
 

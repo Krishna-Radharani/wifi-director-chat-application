@@ -123,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
 
         chatLayout = findViewById(R.id.chatLayout);
 
-        Button sendFileButton = findViewById(R.id.button_send_file);
+        ImageButton sendFileButton = findViewById(R.id.button_send_file);
         sendFileButton.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("*/*");
