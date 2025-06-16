@@ -12,6 +12,7 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 - Supports basic message and files sending and receiving with replying to specific message and timestamp .
 - Deletion of messages and files
 - Designed for learning socket programming on Android.
+- AI integrated suggestions 
 
 ---
 
@@ -60,6 +61,7 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 ![App Screenshot](image1.jpg)
 ![App Screenshot](image2.jpg)
 ![App Screenshot](image3.jpg)
+![App Screenshot](image4.jpg)
 
 ---
 
