@@ -157,25 +157,27 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- AI Smart Reply Suggestions - UPDATED for Vertical Scrolling -->
-    <ScrollView
+    <!-- AI Smart Reply Suggestions - FIXED CONTAINER WIDTH -->
+    <!-- AI Smart Reply Suggestions - HORIZONTAL LAYOUT -->
+    <HorizontalScrollView
         android:id="@+id/suggestionsScrollView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="200dp"
         android:visibility="gone"
         android:layout_marginBottom="8dp"
-        android:scrollbars="vertical"
-        android:fadeScrollbars="false">
+        android:scrollbars="none"
+        android:background="@android:color/transparent">
 
         <LinearLayout
             android:id="@+id/suggestionsContainer"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="8dp" />
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:background="@android:color/transparent" />
 
-    </ScrollView>
+    </HorizontalScrollView>
+
 
 
     <!-- Chat Input fixed at bottom -->

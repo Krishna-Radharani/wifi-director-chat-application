@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
     // AI Smart Reply variables
     private FirebaseSmartReply smartReply;
     private List<FirebaseTextMessage> conversationHistory;
-    private ScrollView  suggestionsScrollView;
+    private HorizontalScrollView   suggestionsScrollView;
     private LinearLayout suggestionsContainer;
     private Handler suggestionHandler;
     private boolean isSmartReplyInitialized = false;
@@ -312,7 +312,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    // Display AI suggestions
+    // Display AI suggestions - TEXTVIEW VERSION (Guaranteed Fix)
     private void displaySuggestions(List<SmartReplySuggestion> suggestions) {
         Log.d(SMART_REPLY_TAG, "=== DISPLAYING SUGGESTIONS ===");
         Log.d(SMART_REPLY_TAG, "Number of suggestions to display: " + suggestions.size());
@@ -335,11 +335,20 @@ public class MainActivity extends AppCompatActivity {
             int maxSuggestions = Math.min(suggestions.size(), 10);
             for (int i = 0; i < maxSuggestions; i++) {
                 SmartReplySuggestion suggestion = suggestions.get(i);
-                Log.d(SMART_REPLY_TAG, "Creating button for suggestion " + i + ": '" + suggestion.getText() + "'");
+                Log.d(SMART_REPLY_TAG, "Creating TextView for suggestion " + i + ": '" + suggestion.getText() + "'");
 
-                Button suggestionButton = new Button(this);
+                // USE TEXTVIEW INSTEAD OF BUTTON - Guaranteed wrap content
+                TextView suggestionButton = new TextView(this);
                 suggestionButton.setText(suggestion.getText());
 
+                // Make it clickable and focusable like a button
+                suggestionButton.setClickable(true);
+                suggestionButton.setFocusable(true);
+                // FORCE SPECIFIC WIDTH - Add this line:
+                suggestionButton.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.6)); // 60% of screen width
+
+
+                // APPLY BORDERED BACKGROUND
                 try {
                     suggestionButton.setBackgroundResource(R.drawable.suggestion_button_background);
                     Log.d(SMART_REPLY_TAG, "Applied background drawable successfully");
@@ -355,14 +364,16 @@ public class MainActivity extends AppCompatActivity {
                     suggestionButton.setTextColor(Color.BLUE);
                 }
 
-                suggestionButton.setTextSize(14f);
-                suggestionButton.setPadding(24, 12, 24, 12);
+                suggestionButton.setTextSize(18f);
+                suggestionButton.setPadding(32, 16, 32, 16 );
+                suggestionButton.setGravity(Gravity.CENTER);  // Center the text like a button
 
+                // GUARANTEED: Use WRAP_CONTENT for both width and height
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
+                        LinearLayout.LayoutParams.WRAP_CONTENT,  // Width wraps to content
+                        LinearLayout.LayoutParams.WRAP_CONTENT   // Height wraps to content
                 );
-                params.setMargins(8, 0, 8, 0);
+                params.setMargins(6, 0, 6, 0);  // Smaller margins
                 suggestionButton.setLayoutParams(params);
 
                 suggestionButton.setOnClickListener(v -> {
@@ -374,23 +385,26 @@ public class MainActivity extends AppCompatActivity {
                 });
 
                 suggestionsContainer.addView(suggestionButton);
-                Log.d(SMART_REPLY_TAG, "Added suggestion button " + i + " to container");
+                Log.d(SMART_REPLY_TAG, "Added suggestion TextView " + i + " to container");
             }
 
             if (suggestionsScrollView != null) {
                 suggestionsScrollView.setVisibility(View.VISIBLE);
                 Log.d(SMART_REPLY_TAG, "Made suggestions container visible");
-                //Toast.makeText(this, "AI suggestions ready! (" + suggestions.size() + " found)", Toast.LENGTH_SHORT).show();
             } else {
                 Log.e(SMART_REPLY_TAG, "ERROR: suggestionsScrollView is null!");
             }
 
         } catch (Exception e) {
-            Log.e(SMART_REPLY_TAG, "ERROR creating suggestion buttons: " + e.getMessage());
+            Log.e(SMART_REPLY_TAG, "ERROR creating suggestion TextViews: " + e.getMessage());
             e.printStackTrace();
             Toast.makeText(this, "Error displaying suggestions: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
+
+
+
+
 
     // Hide AI suggestions
     private void hideSuggestions() {
