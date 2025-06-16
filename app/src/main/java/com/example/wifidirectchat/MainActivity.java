@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
     // AI Smart Reply variables
     private FirebaseSmartReply smartReply;
     private List<FirebaseTextMessage> conversationHistory;
-    private HorizontalScrollView suggestionsScrollView;
+    private ScrollView  suggestionsScrollView;
     private LinearLayout suggestionsContainer;
     private Handler suggestionHandler;
     private boolean isSmartReplyInitialized = false;
@@ -332,7 +332,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         try {
-            for (int i = 0; i < suggestions.size(); i++) {
+            int maxSuggestions = Math.min(suggestions.size(), 10);
+            for (int i = 0; i < maxSuggestions; i++) {
                 SmartReplySuggestion suggestion = suggestions.get(i);
                 Log.d(SMART_REPLY_TAG, "Creating button for suggestion " + i + ": '" + suggestion.getText() + "'");
 
@@ -379,7 +380,7 @@ public class MainActivity extends AppCompatActivity {
             if (suggestionsScrollView != null) {
                 suggestionsScrollView.setVisibility(View.VISIBLE);
                 Log.d(SMART_REPLY_TAG, "Made suggestions container visible");
-                Toast.makeText(this, "AI suggestions ready! (" + suggestions.size() + " found)", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(this, "AI suggestions ready! (" + suggestions.size() + " found)", Toast.LENGTH_SHORT).show();
             } else {
                 Log.e(SMART_REPLY_TAG, "ERROR: suggestionsScrollView is null!");
             }
@@ -1183,13 +1184,32 @@ public class MainActivity extends AppCompatActivity {
             bubbleLayout.addView(replyQuote);
         }
 
+        // UPDATED: Create separate message TextView without timestamp
         TextView msgText = new TextView(this);
-        msgText.setText(actualMessage + "  " + timestamp);
+        msgText.setText(actualMessage);  // Only message text, no timestamp
         msgText.setTextColor(Color.BLACK);
         msgText.setTextSize(16f);
         msgText.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.75));
         bubbleLayout.addView(msgText);
 
+        // NEW: Create separate timestamp TextView positioned at bottom-right
+        TextView timestampText = new TextView(this);
+        timestampText.setText(timestamp);
+        timestampText.setTextColor(Color.GRAY);
+        timestampText.setTextSize(12f);
+        timestampText.setGravity(Gravity.END);  // Align to right
+
+        // Add some top margin to separate from message
+        LinearLayout.LayoutParams timestampParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        timestampParams.setMargins(0, 8, 0, 0);  // 8dp top margin
+        timestampText.setLayoutParams(timestampParams);
+
+        bubbleLayout.addView(timestampText);
+
+        // Handle image attachments (existing code)
         if ((actualMessage.contains("/storage") || actualMessage.contains(getExternalFilesDir(null).getAbsolutePath()))
                 && (actualMessage.endsWith(".jpg") || actualMessage.endsWith(".png") || actualMessage.endsWith(".jpeg"))) {
 
@@ -1240,6 +1260,7 @@ public class MainActivity extends AppCompatActivity {
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
+
 
     private void showDeleteDialog(View messageView, File fileToDelete) {
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);

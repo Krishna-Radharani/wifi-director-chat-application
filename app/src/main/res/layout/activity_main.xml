@@ -52,33 +52,41 @@
 
     </LinearLayout>
 
-    <!-- Connection Status -->
-    <TextView
-        android:id="@+id/connection_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/status_idle"
-        android:textStyle="bold"
-        android:textColor="@color/black"
-        android:layout_marginBottom="8dp" />
-
-    <!-- Toggle Device List Button aligned to right -->
+    <!-- Connection Status + Device List Button on Same Line -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end"
+        android:gravity="center_vertical"
         android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/connection_status"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/status_idle"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:gravity="start|center_vertical" />
 
         <Button
             android:id="@+id/toggleDeviceListButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Hide Device List"
+            android:text="SHOW DEVICE LIST"
             android:elevation="2dp"
             android:backgroundTint="@color/black"
-            android:textColor="@color/white" />
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:minHeight="36dp" />
+
     </LinearLayout>
+
 
     <!-- List of Peers -->
     <ListView
@@ -149,23 +157,26 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- AI Smart Reply Suggestions -->
-    <HorizontalScrollView
+    <!-- AI Smart Reply Suggestions - UPDATED for Vertical Scrolling -->
+    <ScrollView
         android:id="@+id/suggestionsScrollView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:maxHeight="200dp"
         android:visibility="gone"
         android:layout_marginBottom="8dp"
-        android:scrollbars="none">
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false">
 
         <LinearLayout
             android:id="@+id/suggestionsContainer"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="8dp" />
 
-    </HorizontalScrollView>
+    </ScrollView>
+
 
     <!-- Chat Input fixed at bottom -->
     <LinearLayout
