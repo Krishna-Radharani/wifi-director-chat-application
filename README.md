@@ -31,7 +31,7 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/wifidirect-chat.git
+   git clone https://github.com/Krishna-Radharani/wifidirect-chat.git
    cd wifidirect-chat
 2. Open the project in Android Studio.
 
