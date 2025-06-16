@@ -12,6 +12,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -20,8 +22,6 @@ import android.widget.FrameLayout;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
-import android.media.Image;
-import android.net.InetAddresses;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
@@ -31,9 +31,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.BackgroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.AdapterView;
@@ -47,15 +44,21 @@ import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.HorizontalScrollView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
+// ML Kit imports for Smart Reply
+import com.google.firebase.ml.naturallanguage.FirebaseNaturalLanguage;
+import com.google.firebase.ml.naturallanguage.smartreply.FirebaseSmartReply;
+import com.google.firebase.ml.naturallanguage.smartreply.FirebaseTextMessage;
+import com.google.firebase.ml.naturallanguage.smartreply.SmartReplySuggestion;
+import com.google.firebase.ml.naturallanguage.smartreply.SmartReplySuggestionResult;
+
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.File;
@@ -63,7 +66,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -80,6 +82,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
+    private static final String SMART_REPLY_TAG = "SmartReply";
+
     TextView connectionStatus, messageTextView;
     Button aSwitch, discoverButton;
     ListView listView;
@@ -116,10 +121,20 @@ public class MainActivity extends AppCompatActivity {
     FileOutputStream fileOutputStream;
     LinearLayout chatLayout;
 
+    // AI Smart Reply variables
+    private FirebaseSmartReply smartReply;
+    private List<FirebaseTextMessage> conversationHistory;
+    private HorizontalScrollView suggestionsScrollView;
+    private LinearLayout suggestionsContainer;
+    private Handler suggestionHandler;
+    private boolean isSmartReplyInitialized = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Log.d(TAG, "onCreate: Starting MainActivity");
 
         chatLayout = findViewById(R.id.chatLayout);
 
@@ -130,17 +145,28 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
         });
 
-        mediaPlayerSend = MediaPlayer.create(this, R.raw.send_sound);
-        mediaPlayerReceive = MediaPlayer.create(this, R.raw.receive_sound);
+        try {
+            mediaPlayerSend = MediaPlayer.create(this, R.raw.send_sound);
+            mediaPlayerReceive = MediaPlayer.create(this, R.raw.receive_sound);
+        } catch (Exception e) {
+            Log.w(TAG, "Sound files not found, continuing without sound effects");
+        }
 
         Button clearChatButton = findViewById(R.id.clearChatButton);
         messageContainer = findViewById(R.id.messageContainer);
 
         clearChatButton.setOnClickListener(v -> {
+            Log.d(TAG, "Clearing chat and conversation history");
             messageContainer.removeAllViews();
+            if (conversationHistory != null) {
+                conversationHistory.clear();
+                Log.d(SMART_REPLY_TAG, "Conversation history cleared");
+            }
+            hideSuggestions();
         });
 
         initialwork();
+        initializeSmartReply();
 
         Button toggleButton = findViewById(R.id.toggleDeviceListButton);
         ListView deviceListView = findViewById(R.id.listView);
@@ -166,6 +192,255 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Initialize Smart Reply AI - CORRECTED VERSION
+    private void initializeSmartReply() {
+        Log.d(SMART_REPLY_TAG, "Starting Smart Reply initialization...");
+
+        try {
+            smartReply = FirebaseNaturalLanguage.getInstance().getSmartReply();
+            Log.d(SMART_REPLY_TAG, "FirebaseSmartReply instance created successfully");
+
+            conversationHistory = new ArrayList<>();
+            Log.d(SMART_REPLY_TAG, "Conversation history list initialized");
+
+            suggestionsScrollView = findViewById(R.id.suggestionsScrollView);
+            suggestionsContainer = findViewById(R.id.suggestionsContainer);
+
+            if (suggestionsScrollView == null) {
+                Log.e(SMART_REPLY_TAG, "ERROR: suggestionsScrollView not found in layout!");
+                Toast.makeText(this, "AI Suggestions layout missing - check XML", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (suggestionsContainer == null) {
+                Log.e(SMART_REPLY_TAG, "ERROR: suggestionsContainer not found in layout!");
+                Toast.makeText(this, "AI Suggestions container missing - check XML", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            Log.d(SMART_REPLY_TAG, "UI elements found successfully");
+
+            suggestionHandler = new Handler(Looper.getMainLooper());
+            Log.d(SMART_REPLY_TAG, "Handler created successfully");
+
+            if (typeMsg != null) {
+                typeMsg.addTextChangedListener(new TextWatcher() {
+                    @Override
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        Log.d(SMART_REPLY_TAG, "Text changed: '" + s + "' (length: " + s.length() + ")");
+                        Log.d(SMART_REPLY_TAG, "Conversation history size: " + conversationHistory.size());
+
+                        if (s.length() > 0 && conversationHistory.size() > 0) {
+                            Log.d(SMART_REPLY_TAG, "Conditions met for generating suggestions - scheduling...");
+                            suggestionHandler.removeCallbacksAndMessages(null);
+                            suggestionHandler.postDelayed(() -> {
+                                Log.d(SMART_REPLY_TAG, "Executing delayed suggestion generation");
+                                generateSmartReplies();
+                            }, 800);
+                        } else {
+                            Log.d(SMART_REPLY_TAG, "Conditions not met - hiding suggestions");
+                            hideSuggestions();
+                        }
+                    }
+
+                    @Override
+                    public void afterTextChanged(Editable s) {}
+                });
+
+                Log.d(SMART_REPLY_TAG, "TextWatcher added to EditText successfully");
+                isSmartReplyInitialized = true;
+                Log.d(SMART_REPLY_TAG, "Smart Reply initialization completed successfully!");
+
+                Toast.makeText(this, "AI Smart Reply initialized successfully!", Toast.LENGTH_SHORT).show();
+
+            } else {
+                Log.e(SMART_REPLY_TAG, "ERROR: typeMsg EditText is null!");
+                Toast.makeText(this, "Input field not found - AI won't work", Toast.LENGTH_LONG).show();
+            }
+
+        } catch (Exception e) {
+            Log.e(SMART_REPLY_TAG, "CRITICAL ERROR in Smart Reply initialization: " + e.getMessage());
+            e.printStackTrace();
+            Toast.makeText(this, "AI initialization failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            isSmartReplyInitialized = false;
+        }
+    }
+
+    // Generate AI smart replies - CORRECTED VERSION
+    // CORRECTED: Generate AI smart replies
+    private void generateSmartReplies() {
+        Log.d(SMART_REPLY_TAG, "Generating smart replies...");
+        Log.d(SMART_REPLY_TAG, "Conversation history size: " + conversationHistory.size());
+
+        if (!isSmartReplyInitialized || conversationHistory.isEmpty()) {
+            Log.d(SMART_REPLY_TAG, "Cannot generate suggestions - insufficient data");
+            hideSuggestions();
+            return;
+        }
+
+        try {
+            smartReply.suggestReplies(conversationHistory)
+                    .addOnSuccessListener(result -> {
+                        Log.d(SMART_REPLY_TAG, "ML Kit API Success - Status: " + result.getStatus());
+
+                        if (result.getStatus() == SmartReplySuggestionResult.STATUS_SUCCESS) {
+                            Log.d(SMART_REPLY_TAG, "Suggestions generated: " + result.getSuggestions().size());
+                            displaySuggestions(result.getSuggestions());
+                        } else if (result.getStatus() == SmartReplySuggestionResult.STATUS_NOT_SUPPORTED_LANGUAGE) {
+                            Log.w(SMART_REPLY_TAG, "Language not supported - use English only");
+                            Toast.makeText(this, "AI only works with English conversations", Toast.LENGTH_LONG).show();
+                            hideSuggestions();
+                        } else {
+                            Log.d(SMART_REPLY_TAG, "No suggestions available");
+                            hideSuggestions();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(SMART_REPLY_TAG, "ML Kit API Failed: " + e.getMessage());
+                        e.printStackTrace();
+                        hideSuggestions();
+                    });
+
+        } catch (Exception e) {
+            Log.e(SMART_REPLY_TAG, "Exception in generateSmartReplies: " + e.getMessage());
+            e.printStackTrace();
+            hideSuggestions();
+        }
+    }
+
+
+    // Display AI suggestions
+    private void displaySuggestions(List<SmartReplySuggestion> suggestions) {
+        Log.d(SMART_REPLY_TAG, "=== DISPLAYING SUGGESTIONS ===");
+        Log.d(SMART_REPLY_TAG, "Number of suggestions to display: " + suggestions.size());
+
+        if (suggestionsContainer == null) {
+            Log.e(SMART_REPLY_TAG, "ERROR: suggestionsContainer is null!");
+            return;
+        }
+
+        suggestionsContainer.removeAllViews();
+        Log.d(SMART_REPLY_TAG, "Cleared existing suggestion views");
+
+        if (suggestions.isEmpty()) {
+            Log.d(SMART_REPLY_TAG, "No suggestions to display - hiding container");
+            hideSuggestions();
+            return;
+        }
+
+        try {
+            for (int i = 0; i < suggestions.size(); i++) {
+                SmartReplySuggestion suggestion = suggestions.get(i);
+                Log.d(SMART_REPLY_TAG, "Creating button for suggestion " + i + ": '" + suggestion.getText() + "'");
+
+                Button suggestionButton = new Button(this);
+                suggestionButton.setText(suggestion.getText());
+
+                try {
+                    suggestionButton.setBackgroundResource(R.drawable.suggestion_button_background);
+                    Log.d(SMART_REPLY_TAG, "Applied background drawable successfully");
+                } catch (Exception e) {
+                    Log.w(SMART_REPLY_TAG, "Background drawable not found, using default: " + e.getMessage());
+                    suggestionButton.setBackgroundColor(Color.LTGRAY);
+                }
+
+                try {
+                    suggestionButton.setTextColor(getResources().getColor(R.color.purple_500));
+                } catch (Exception e) {
+                    Log.w(SMART_REPLY_TAG, "Purple color not found, using default: " + e.getMessage());
+                    suggestionButton.setTextColor(Color.BLUE);
+                }
+
+                suggestionButton.setTextSize(14f);
+                suggestionButton.setPadding(24, 12, 24, 12);
+
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                params.setMargins(8, 0, 8, 0);
+                suggestionButton.setLayoutParams(params);
+
+                suggestionButton.setOnClickListener(v -> {
+                    Log.d(SMART_REPLY_TAG, "Suggestion clicked: '" + suggestion.getText() + "'");
+                    typeMsg.setText(suggestion.getText());
+                    typeMsg.setSelection(typeMsg.getText().length());
+                    hideSuggestions();
+                    Toast.makeText(this, "Suggestion applied!", Toast.LENGTH_SHORT).show();
+                });
+
+                suggestionsContainer.addView(suggestionButton);
+                Log.d(SMART_REPLY_TAG, "Added suggestion button " + i + " to container");
+            }
+
+            if (suggestionsScrollView != null) {
+                suggestionsScrollView.setVisibility(View.VISIBLE);
+                Log.d(SMART_REPLY_TAG, "Made suggestions container visible");
+                Toast.makeText(this, "AI suggestions ready! (" + suggestions.size() + " found)", Toast.LENGTH_SHORT).show();
+            } else {
+                Log.e(SMART_REPLY_TAG, "ERROR: suggestionsScrollView is null!");
+            }
+
+        } catch (Exception e) {
+            Log.e(SMART_REPLY_TAG, "ERROR creating suggestion buttons: " + e.getMessage());
+            e.printStackTrace();
+            Toast.makeText(this, "Error displaying suggestions: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // Hide AI suggestions
+    private void hideSuggestions() {
+        Log.d(SMART_REPLY_TAG, "Hiding suggestions");
+
+        if (suggestionsScrollView != null) {
+            suggestionsScrollView.setVisibility(View.GONE);
+            Log.d(SMART_REPLY_TAG, "Hidden suggestions scroll view");
+        }
+
+        if (suggestionsContainer != null) {
+            suggestionsContainer.removeAllViews();
+            Log.d(SMART_REPLY_TAG, "Removed all suggestion views");
+        }
+    }
+
+    // CORRECTED: Add messages to conversation history for AI
+// CORRECTED: Add messages to conversation history for AI
+    private void addToConversationHistory(String message, boolean isLocalUser) {
+        Log.d(SMART_REPLY_TAG, "Adding message to conversation history: " + message);
+
+        if (!isSmartReplyInitialized) {
+            Log.w(SMART_REPLY_TAG, "Smart Reply not initialized - skipping");
+            return;
+        }
+
+        try {
+            FirebaseTextMessage textMessage;
+            if (isLocalUser) {
+                textMessage = FirebaseTextMessage.createForLocalUser(message, System.currentTimeMillis());
+            } else {
+                textMessage = FirebaseTextMessage.createForRemoteUser(message, System.currentTimeMillis(), "remote_user");
+            }
+
+            conversationHistory.add(textMessage);
+            Log.d(SMART_REPLY_TAG, "Message added successfully. History size: " + conversationHistory.size());
+
+            // Keep only last 10 messages
+            if (conversationHistory.size() > 10) {
+                conversationHistory.remove(0);
+                Log.d(SMART_REPLY_TAG, "Removed oldest message. New size: " + conversationHistory.size());
+            }
+
+        } catch (Exception e) {
+            Log.e(SMART_REPLY_TAG, "Error adding to conversation history: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
+    // Your existing methods continue here...
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -193,10 +468,7 @@ public class MainActivity extends AppCompatActivity {
                     clientClass.write(new byte[]{1}, 0, 1);
                 }
 
-                byte[] fileNameBytes = null;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
-                }
+                @SuppressLint({"NewApi", "LocalSuppress"}) byte[] fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
                 ByteBuffer fileNameLength = ByteBuffer.allocate(4);
                 fileNameLength.putInt(fileNameBytes.length);
 
@@ -261,100 +533,92 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void exqListener() {
-        aSwitch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
-                startActivityForResult(intent, 1);
-            }
-        });
-        discoverButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
-                    @Override
-                    public void onSuccess() {
-                        connectionStatus.setText("Discovery started");
-                    }
-
-                    @Override
-                    public void onFailure(int reason) {
-                        connectionStatus.setText("Discovery not started");
-                    }
-                });
-            }
+        aSwitch.setOnClickListener(view -> {
+            Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+            startActivityForResult(intent, 1);
         });
 
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                final WifiP2pDevice device = deviceArray[i];
-                WifiP2pConfig config = new WifiP2pConfig();
-                config.deviceAddress = device.deviceAddress;
-                manager.connect(channel, config, new WifiP2pManager.ActionListener() {
-                    @Override
-                    public void onSuccess() {
-                        connectionStatus.setText("Connected " + device.deviceAddress);
-                    }
-
-                    @Override
-                    public void onFailure(int reason) {
-                        connectionStatus.setText("Not Connected");
-                    }
-                });
-            }
-        });
-
-        sendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String msg = typeMsg.getText().toString().trim();
-                if (!msg.isEmpty()) {
-                    if (replyingToMessage != null) {
-                        msg = "Replying to: " + replyingToMessage + "\n" + msg;
-                        replyingToMessage = null;
-                        replyLayout.setVisibility(View.GONE);
-                    }
-                    appendMessageWithMeta(msg, true);
-
-                    if(mediaPlayerSend != null){
-                        mediaPlayerSend.start();
-                    }
-
-                    ExecutorService executor = Executors.newSingleThreadExecutor();
-                    String finalMsg = msg;
-                    executor.execute(() -> {
-                        try {
-                            byte[] messageBytes = null;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                messageBytes = finalMsg.getBytes(StandardCharsets.UTF_8);
-                            }
-
-                            if (isHost) {
-                                serverClass.write(new byte[]{0}, 0, 1);
-                            } else {
-                                clientClass.write(new byte[]{0}, 0, 1);
-                            }
-
-                            ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
-                            lengthBuffer.putInt(messageBytes.length);
-
-                            if (isHost) {
-                                serverClass.write(lengthBuffer.array(), 0, 4);
-                                serverClass.write(messageBytes, 0, messageBytes.length);
-                            } else {
-                                clientClass.write(lengthBuffer.array(), 0, 4);
-                                clientClass.write(messageBytes, 0, messageBytes.length);
-                            }
-
-                            runOnUiThread(() -> typeMsg.setText(""));
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            runOnUiThread(() ->
-                                    Toast.makeText(MainActivity.this, "Error sending message", Toast.LENGTH_SHORT).show());
-                        }
-                    });
+        discoverButton.setOnClickListener(view -> {
+            manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    connectionStatus.setText("Discovery started");
                 }
+
+                @Override
+                public void onFailure(int reason) {
+                    connectionStatus.setText("Discovery not started");
+                }
+            });
+        });
+
+        listView.setOnItemClickListener((adapterView, view, i, l) -> {
+            final WifiP2pDevice device = deviceArray[i];
+            WifiP2pConfig config = new WifiP2pConfig();
+            config.deviceAddress = device.deviceAddress;
+            manager.connect(channel, config, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    connectionStatus.setText("Connected " + device.deviceAddress);
+                }
+
+                @Override
+                public void onFailure(int reason) {
+                    connectionStatus.setText("Not Connected");
+                }
+            });
+        });
+
+        sendButton.setOnClickListener(view -> {
+            String msg = typeMsg.getText().toString().trim();
+            Log.d(TAG, "Send button clicked with message: '" + msg + "'");
+
+            if (!msg.isEmpty()) {
+                hideSuggestions();
+
+                if (replyingToMessage != null) {
+                    msg = "Replying to: " + replyingToMessage + "\n" + msg;
+                    replyingToMessage = null;
+                    replyLayout.setVisibility(View.GONE);
+                }
+
+                Log.d(TAG, "Appending message to UI and adding to AI history");
+                appendMessageWithMeta(msg, true);
+
+                if(mediaPlayerSend != null){
+                    mediaPlayerSend.start();
+                }
+
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                String finalMsg = msg;
+                executor.execute(() -> {
+                    try {
+                        @SuppressLint({"NewApi", "LocalSuppress"}) byte[] messageBytes = finalMsg.getBytes(StandardCharsets.UTF_8);
+
+                        if (isHost) {
+                            serverClass.write(new byte[]{0}, 0, 1);
+                        } else {
+                            clientClass.write(new byte[]{0}, 0, 1);
+                        }
+
+                        ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+                        lengthBuffer.putInt(messageBytes.length);
+
+                        if (isHost) {
+                            serverClass.write(lengthBuffer.array(), 0, 4);
+                            serverClass.write(messageBytes, 0, messageBytes.length);
+                        } else {
+                            clientClass.write(lengthBuffer.array(), 0, 4);
+                            clientClass.write(messageBytes, 0, messageBytes.length);
+                        }
+
+                        runOnUiThread(() -> typeMsg.setText(""));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        runOnUiThread(() ->
+                                Toast.makeText(MainActivity.this, "Error sending message", Toast.LENGTH_SHORT).show());
+                    }
+                });
             }
         });
     }
@@ -399,7 +663,6 @@ public class MainActivity extends AppCompatActivity {
 
                 if (peers.size() == 0) {
                     connectionStatus.setText("No Device Found");
-                    return;
                 }
             }
         }
@@ -435,6 +698,7 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(receiver);
     }
 
+    // Your existing ServerClass and ClientClass remain the same...
     public class ServerClass extends Thread {
         ServerSocket serverSocket;
         private InputStream inputStream;
@@ -475,12 +739,9 @@ public class MainActivity extends AppCompatActivity {
                             int messageLength = dis.readInt();
                             byte[] messageBytes = new byte[messageLength];
                             dis.readFully(messageBytes);
-                            String message;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                message = new String(messageBytes, StandardCharsets.UTF_8);
-                            } else {
-                                message = null;
-                            }
+                            @SuppressLint({"NewApi", "LocalSuppress"}) String message = new String(messageBytes, StandardCharsets.UTF_8);
+
+                            Log.d(TAG, "Received message from remote: '" + message + "'");
 
                             runOnUiThread(() -> {
                                 appendMessageWithMeta(message, false);
@@ -490,13 +751,11 @@ public class MainActivity extends AppCompatActivity {
                             });
 
                         } else if (messageType == 1) {
+                            // File handling code remains the same
                             int fileNameLength = dis.readInt();
                             byte[] fileNameBytes = new byte[fileNameLength];
                             dis.readFully(fileNameBytes);
-                            String fileName = null;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
-                            }
+                            @SuppressLint({"NewApi", "LocalSuppress"}) String fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
 
                             long fileSize = dis.readLong();
                             File outputFile = new File(getExternalFilesDir(null), fileName);
@@ -605,12 +864,9 @@ public class MainActivity extends AppCompatActivity {
                             int messageLength = dis.readInt();
                             byte[] messageBytes = new byte[messageLength];
                             dis.readFully(messageBytes);
-                            String message;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                message = new String(messageBytes, StandardCharsets.UTF_8);
-                            } else {
-                                message = null;
-                            }
+                            @SuppressLint({"NewApi", "LocalSuppress"}) String message = new String(messageBytes, StandardCharsets.UTF_8);
+
+                            Log.d(TAG, "Received message from remote: '" + message + "'");
 
                             runOnUiThread(() -> {
                                 appendMessageWithMeta(message, false);
@@ -620,13 +876,11 @@ public class MainActivity extends AppCompatActivity {
                             });
 
                         } else if (messageType == 1) {
+                            // File handling code remains the same
                             int fileNameLength = dis.readInt();
                             byte[] fileNameBytes = new byte[fileNameLength];
                             dis.readFully(fileNameBytes);
-                            String fileName = null;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
-                            }
+                            @SuppressLint({"NewApi", "LocalSuppress"}) String fileName = new String(fileNameBytes, StandardCharsets.UTF_8);
 
                             long fileSize = dis.readLong();
                             File outputFile = new File(getExternalFilesDir(null), fileName);
@@ -735,7 +989,13 @@ public class MainActivity extends AppCompatActivity {
         FrameLayout wrapper = new FrameLayout(this);
         LinearLayout bubbleLayout = new LinearLayout(this);
         bubbleLayout.setOrientation(LinearLayout.VERTICAL);
-        bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+
+        try {
+            bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+        } catch (Exception e) {
+            bubbleLayout.setBackgroundColor(isSender ? Color.LTGRAY : Color.WHITE);
+        }
+
         bubbleLayout.setPadding(20, 14, 20, 14);
 
         LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
@@ -876,6 +1136,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void appendMessageWithMeta(String message, boolean isSender) {
+        Log.d(TAG, "Appending message: '" + message + "', isSender: " + isSender);
+
+        // Add to AI conversation history
+        addToConversationHistory(message, isSender);
+
         String timestamp = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
 
         String quotedText = null;
@@ -893,7 +1158,13 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout bubbleLayout = new LinearLayout(this);
         bubbleLayout.setOrientation(LinearLayout.VERTICAL);
-        bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+
+        try {
+            bubbleLayout.setBackgroundResource(isSender ? R.drawable.bubble_sender : R.drawable.bubble_receiver);
+        } catch (Exception e) {
+            bubbleLayout.setBackgroundColor(isSender ? Color.LTGRAY : Color.WHITE);
+        }
+
         bubbleLayout.setPadding(20, 14, 20, 14);
 
         LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(
@@ -1006,11 +1277,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-            boolean result = gestureDetector.onTouchEvent(event);
-            if (!result) {
-                return false; // Allow other touch listeners (like long press) to work
-            }
-            return result;
+            return gestureDetector.onTouchEvent(event);
         }
 
         private final class GestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -1019,7 +1286,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public boolean onDown(MotionEvent e) {
-                return false; // FIXED: Changed from true to false to allow long press
+                return false;
             }
 
             @Override

@@ -51,6 +51,7 @@
             android:paddingRight="16dp"/>
 
     </LinearLayout>
+
     <!-- Connection Status -->
     <TextView
         android:id="@+id/connection_status"
@@ -126,7 +127,7 @@
         android:layout_weight="1"
         android:layout_marginBottom="8dp">
 
-        <!-- ✅ Single child inside ScrollView -->
+        <!-- Single child inside ScrollView -->
         <LinearLayout
             android:id="@+id/scrollContentWrapper"
             android:layout_width="match_parent"
@@ -148,6 +149,23 @@
         </LinearLayout>
     </ScrollView>
 
+    <!-- AI Smart Reply Suggestions -->
+    <HorizontalScrollView
+        android:id="@+id/suggestionsScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/suggestionsContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp" />
+
+    </HorizontalScrollView>
 
     <!-- Chat Input fixed at bottom -->
     <LinearLayout
@@ -190,9 +208,6 @@
             app:tint="@color/purple_500"
             android:padding="8dp" />
     </LinearLayout>
-
-
-
 
     <!-- Clear Chat Button -->
     <Button
