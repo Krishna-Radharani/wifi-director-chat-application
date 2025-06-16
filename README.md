@@ -35,8 +35,7 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
    cd wifidirect-chat
 2. Open the project in Android Studio.
 
-3. Build and run on two devices/emulators.
-4. 
+3. Build and run on two devices not in emulators.
 ---
 
 ### Usage
