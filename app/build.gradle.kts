@@ -58,6 +58,9 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.cardview)
+    implementation(libs.androidx.emoji2.emojipicker)
+    implementation(libs.androidx.material)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -69,7 +72,8 @@ dependencies {
 
     // ADD THESE FIREBASE DEPENDENCIES
     implementation("com.google.firebase:firebase-core:21.1.1")
-    implementation("com.google.firebase:firebase-common:20.4.2")
-    implementation("com.google.firebase:firebase-ml-natural-language:22.0.0")
-    implementation("com.google.firebase:firebase-ml-natural-language-smart-reply-model:20.0.7")
+    implementation("com.google.firebase:firebase-common:21.0.0")
+    implementation("com.google.firebase:firebase-ml-natural-language:22.0.1")
+    implementation("com.google.firebase:firebase-ml-natural-language-smart-reply-model:20.0.8")
+
 }

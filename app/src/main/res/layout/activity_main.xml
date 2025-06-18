@@ -2,100 +2,113 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/layout_root"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
     android:background="@color/white">
 
-    <!-- Enable Option + Discover Devices in one row -->
+    <!-- WhatsApp-style Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="12dp"
-        android:gravity="center_vertical">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/enable_option"
-                android:textColor="@color/black"
-                android:layout_marginEnd="8dp"/>
-
-            <androidx.appcompat.widget.SwitchCompat
-                android:id="@+id/swithch1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"/>
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/buttonDiscover"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/discover_devices"
-            android:backgroundTint="@color/purple_500"
-            android:textColor="@color/white"
-            android:minHeight="40dp"
-            android:elevation="4dp"
-            android:paddingLeft="16dp"
-            android:paddingRight="16dp"/>
-
-    </LinearLayout>
-
-    <!-- Connection Status + Device List Button on Same Line -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
+        android:background="@color/teal_700"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="8dp">
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:elevation="4dp">
 
         <TextView
-            android:id="@+id/connection_status"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="@string/status_idle"
-            android:textStyle="bold"
-            android:textColor="@color/black"
-            android:gravity="start|center_vertical" />
-
-        <Button
-            android:id="@+id/toggleDeviceListButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SHOW DEVICE LIST"
-            android:elevation="2dp"
-            android:backgroundTint="@color/black"
+            android:text="WiFi Chat"
             android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:minHeight="36dp" />
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Voice Call Button in header -->
+        <ImageButton
+            android:id="@+id/voiceCallButton"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginTop="5dp"
+             android:src="@drawable/ic_call"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="2dp"
+            app:tint="@color/white"
+            android:contentDescription="Voice Call" />
+
+        <!-- WiFi Toggle Icon -->
+        <ImageView
+            android:id="@+id/wifiToggleIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="16dp"
+            android:src="@drawable/ic_wifi"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            app:tint="@color/white" />
+
+        <!-- Overflow Menu -->
+        <ImageView
+            android:id="@+id/overflowMenu"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_more_vert"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            app:tint="@color/white" />
 
     </LinearLayout>
 
-
-    <!-- List of Peers -->
-    <ListView
-        android:id="@+id/listView"
+    <!-- Connection Status -->
+    <TextView
+        android:id="@+id/connection_status"
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp"
-        android:layout_marginBottom="16dp" />
+        android:layout_height="wrap_content"
+        android:text="@string/status_idle"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:padding="12dp"
+        android:background="#F5F5F5"
+        android:gravity="center" />
+
+    <!-- Device List Card (Initially Hidden) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/deviceListCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Available Devices"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <ListView
+                android:id="@+id/listView"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:divider="@android:color/darker_gray"
+                android:dividerHeight="1dp" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <!-- Reply Preview -->
     <LinearLayout
@@ -128,6 +141,7 @@
             app:tint="@color/black" />
     </LinearLayout>
 
+    <!-- Messages ScrollView -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
@@ -135,7 +149,6 @@
         android:layout_weight="1"
         android:layout_marginBottom="8dp">
 
-        <!-- Single child inside ScrollView -->
         <LinearLayout
             android:id="@+id/scrollContentWrapper"
             android:layout_width="match_parent"
@@ -157,8 +170,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- AI Smart Reply Suggestions - FIXED CONTAINER WIDTH -->
-    <!-- AI Smart Reply Suggestions - HORIZONTAL LAYOUT -->
+    <!-- AI Smart Reply Suggestions -->
     <HorizontalScrollView
         android:id="@+id/suggestionsScrollView"
         android:layout_width="match_parent"
@@ -175,51 +187,113 @@
             android:orientation="horizontal"
             android:padding="8dp"
             android:background="@android:color/transparent" />
-
     </HorizontalScrollView>
 
+    <!-- Call Control Overlay (Initially Hidden) -->
+    <LinearLayout
+        android:id="@+id/callControlLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="16dp"
+        android:background="#AA000000"
+        android:visibility="gone">
 
+        <ImageButton
+            android:id="@+id/endCallButton"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_call_end"
+            android:background="@drawable/circle_red_background"
+            android:contentDescription="End Call" />
 
-    <!-- Chat Input fixed at bottom -->
+        <TextView
+            android:id="@+id/callStatusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Voice Call Active"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Emoji Picker -->
+    <androidx.emoji2.emojipicker.EmojiPickerView
+        android:id="@+id/emojiPickerView"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:visibility="gone"
+        app:emojiGridColumns="8"
+        app:emojiGridRows="6"
+        tools:ignore="MissingClass" />
+
+    <!-- WhatsApp-style Input Area -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="@drawable/edit_text_background"
         android:padding="8dp"
-        android:elevation="2dp"
-        android:layout_marginBottom="12dp"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:background="@color/white">
 
-        <EditText
-            android:id="@+id/editTextTypeMsg"
+        <!-- Input Container with Rounded Corners -->
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:hint="@string/type_message"
-            android:inputType="text"
-            android:minHeight="48dp"
-            android:textColor="@color/black"
-            android:background="@android:color/transparent" />
+            android:orientation="horizontal"
+            android:background="@drawable/rounded_input_background"
+            android:gravity="center_vertical"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:layout_marginEnd="8dp">
 
+            <!-- Emoji Icon -->
+            <ImageView
+                android:id="@+id/emojiIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_emoji"
+                android:layout_marginEnd="8dp"
+                app:tint="@color/dark_gray" />
+
+            <!-- Message Input -->
+            <EditText
+                android:id="@+id/editTextTypeMsg"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="Type a message"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLines="4"
+                android:minHeight="40dp"
+                android:textColor="@color/black"
+                android:textColorHint="@color/gray"
+                android:background="@android:color/transparent"
+                android:padding="8dp" />
+
+            <!-- File Attachment -->
+            <ImageView
+                android:id="@+id/button_send_file"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_menu_upload"
+                android:layout_marginStart="8dp"
+                app:tint="@color/dark_gray" />
+        </LinearLayout>
+
+        <!-- Voice/Send Button -->
         <ImageButton
-            android:id="@+id/button_send_file"
+            android:id="@+id/voiceSendButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_menu_upload"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Send File"
-            android:padding="8dp" />
-
-        <ImageButton
-            android:id="@+id/sendButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_send"
-            android:contentDescription="@string/send"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            app:tint="@color/purple_500"
-            android:padding="8dp" />
+            android:src="@drawable/ic_mic"
+            android:background="@drawable/circle_button_background"
+            android:padding="12dp"
+            android:contentDescription="Voice or Send Button"
+            android:visibility="visible"
+            app:tint="@color/white" />
     </LinearLayout>
 
     <!-- Clear Chat Button -->
@@ -230,7 +304,6 @@
         android:text="@string/clear_chat"
         android:textColor="@color/white"
         android:backgroundTint="@color/teal_700"
-        android:minHeight="48dp"
-        android:elevation="2dp" />
-
+        android:layout_gravity="center"
+        android:layout_margin="8dp" />
 </LinearLayout>

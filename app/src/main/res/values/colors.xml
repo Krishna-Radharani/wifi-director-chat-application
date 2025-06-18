@@ -8,6 +8,7 @@
     <color name="teal_700">#FF018786</color>
     <color name="white">#FFFFFFFF</color>
     <color name="gray">#DDDDDD</color>
+    <color name="dark_gray">#444444</color>
     <color name="black">#000000</color>
 
     <!-- Modern Chat App Colors -->
@@ -73,4 +74,6 @@
     <color name="status_online">#48BB78</color>
     <color name="status_offline">#F56565</color>
     <color name="status_connecting">#ED8936</color>
+
+
 </resources>
