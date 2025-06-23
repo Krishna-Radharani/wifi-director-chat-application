@@ -3,6 +3,12 @@
 A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer text messaging without an internet connection.
 
 ---
+## 📦 Download APK
+
+[⬇️ Click here to download the latest APK](https://github.com/Krishna-Radharani/wifidirect-chat/releases/download/v1.0/WiFiDirectChat-v1.0.zip)
+
+> 🔐 Extract the ZIP and install the `.apk` on your Android device.
+
 
 ## Features
 
