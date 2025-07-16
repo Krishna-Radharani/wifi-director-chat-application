@@ -13,11 +13,10 @@ A simple Android chat app using **Wi-Fi Direct sockets** to enable peer-to-peer 
 ## Features
 
 - Peer-to-peer messaging over Wi-Fi Direct.
-- Separate client and server socket handling.
+- real time voice-call 
 - Real-time chat UI with sender/receiver message bubbles.
 - Supports basic message and files sending and receiving with replying to specific message and timestamp .
 - Deletion of messages and files
-- Designed for learning socket programming on Android.
 - AI integrated suggestions 
 
 ---
